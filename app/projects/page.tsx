@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { formatCalendarDate } from "@/lib/dates";
 import { es } from "date-fns/locale";
 import { listProjects } from "@/lib/queries";
-import { createProject, deleteProject } from "@/lib/actions";
+import { NewProjectNameInput } from "@/components/NewProjectNameInput";
 
 export const dynamic = "force-dynamic";
 
@@ -44,12 +44,7 @@ export default async function ProjectsPage() {
         >
           <label className="flex flex-1 flex-col gap-0.5 text-sm">
             <span className="text-xs italic text-muted">Nuevo</span>
-            <input
-              name="name"
-              required
-              placeholder="Nombre del evento, tarea o proyecto..."
-              className="rounded-lg border border-border px-3 py-1.5 outline-none ring-accent placeholder:text-[11px] placeholder:italic focus:ring-2"
-            />
+            <NewProjectNameInput />
           </label>
           <label className="flex flex-col gap-0.5 text-sm">
             <span className="text-xs italic text-muted">Fecha límite</span>
