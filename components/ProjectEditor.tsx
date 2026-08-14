@@ -290,7 +290,7 @@ export function ProjectEditor({
               {selected && (
                 <button
                   type="button"
-                  className="text-sm text-red-600 hover:underline"
+                  className="rounded-lg border border-red-600 px-2 py-0.5 text-xs text-red-600 hover:bg-red-50"
                   onClick={() =>
                     startTransition(async () => {
                       await deleteTask(selected.id);
