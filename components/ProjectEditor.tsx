@@ -64,12 +64,15 @@ export function ProjectEditor({
   eventDayRelative: number;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [connectorSelected, setConnectorSelected] = useState(false);
   const [newTaskOpen, setNewTaskOpen] = useState(false);
   const [simActive, setSimActive] = useState(false);
   const [scenarioId, setScenarioId] = useState(scenarios[0]?.id ?? null);
   const [pending, startTransition] = useTransition();
 
-  const selected = tasks.find((t) => t.id === selectedId) ?? null;
+  const selected = connectorSelected
+    ? null
+    : (tasks.find((t) => t.id === selectedId) ?? null);
   const scenario = scenarios.find((s) => s.id === scenarioId) ?? null;
   const patches = (Array.isArray(scenario?.patches)
     ? scenario!.patches
@@ -182,7 +185,14 @@ export function ProjectEditor({
                 simulation.result.byId[t.id]?.critical ?? t.isCritical,
             }))}
             edges={edges}
-            onSelectTask={setSelectedId}
+            onSelectTask={(id) => {
+              setSelectedId(id);
+              setConnectorSelected(false);
+            }}
+            onSelectConnector={(selected) => {
+              setConnectorSelected(selected);
+              if (selected) setSelectedId(null);
+            }}
           />
         </div>
 
@@ -235,7 +245,23 @@ export function ProjectEditor({
           </div>
 
           <div className="rounded-2xl border border-border bg-panel p-4 shadow-sm">
-            <h2 className="mb-3 font-semibold">Detalle</h2>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="font-semibold">Detalle</h2>
+              {selected && (
+                <button
+                  type="button"
+                  className="text-sm text-red-600 hover:underline"
+                  onClick={() =>
+                    startTransition(async () => {
+                      await deleteTask(selected.id);
+                      setSelectedId(null);
+                    })
+                  }
+                >
+                  Eliminar tarea
+                </button>
+              )}
+            </div>
             {!selected ? (
               <p className="text-sm text-muted">Selecciona una tarea</p>
             ) : (
@@ -313,21 +339,17 @@ export function ProjectEditor({
                       })}
                   </ul>
                 </div>
-                <button
-                  type="button"
-                  className="text-sm text-red-600 hover:underline"
-                  onClick={() =>
-                    startTransition(async () => {
-                      await deleteTask(selected.id);
-                      setSelectedId(null);
-                    })
-                  }
-                >
-                  Eliminar tarea
-                </button>
               </div>
             )}
           </div>
+          {connectorSelected && (
+            <p
+              role="tooltip"
+              className="rounded-md bg-critical px-2.5 py-1.5 text-[11px] font-medium text-white shadow-md"
+            >
+              Para borrar el elemento presione DELETE
+            </p>
+          )}
         </aside>
 
         <div className="min-w-0 lg:col-span-2">
@@ -335,7 +357,10 @@ export function ProjectEditor({
             tasks={simTasks}
             eventDate={eventDate}
             simulation={simActive}
-            onSelectTask={setSelectedId}
+            onSelectTask={(id) => {
+              setSelectedId(id);
+              setConnectorSelected(false);
+            }}
           />
         </div>
       </div>

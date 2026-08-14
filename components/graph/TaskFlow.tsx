@@ -7,9 +7,12 @@ import {
   Controls,
   MiniMap,
   MarkerType,
+  BaseEdge,
+  getBezierPath,
   type Node,
   type Edge,
   type NodeProps,
+  type EdgeProps,
   type ReactFlowInstance,
   Handle,
   Position,
@@ -19,7 +22,7 @@ import {
   Connection,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { createDependency, updateTask } from "@/lib/actions";
+import { createDependency, deleteDependency, updateTask } from "@/lib/actions";
 
 export type FlowTask = {
   id: string;
@@ -62,6 +65,70 @@ function TaskNode({ data }: NodeProps) {
 }
 
 const nodeTypes = { task: TaskNode };
+const SELECTED_EDGE = "#dc2626";
+const DEFAULT_EDGE = "#0d9488";
+
+function DependencyEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  selected,
+  label,
+  markerEnd,
+  style,
+  interactionWidth,
+}: EdgeProps) {
+  const [edgePath] = getBezierPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+  });
+  const color = selected ? SELECTED_EDGE : DEFAULT_EDGE;
+  const markerId = `arrow-red-${id}`;
+
+  return (
+    <>
+      {selected && (
+        <defs>
+          <marker
+            id={markerId}
+            markerWidth="12.5"
+            markerHeight="12.5"
+            viewBox="-10 -10 20 20"
+            orient="auto-start-reverse"
+            refX="0"
+            refY="0"
+          >
+            <polyline
+              stroke={SELECTED_EDGE}
+              fill={SELECTED_EDGE}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              points="-5,-4 0,0 -5,4 -5,-4"
+            />
+          </marker>
+        </defs>
+      )}
+      <BaseEdge
+        id={id}
+        path={edgePath}
+        label={label}
+        markerEnd={selected ? `url(#${markerId})` : markerEnd}
+        style={{ ...style, stroke: color, strokeWidth: selected ? 3 : 2 }}
+        interactionWidth={interactionWidth ?? 24}
+      />
+    </>
+  );
+}
+
+const edgeTypes = { dependency: DependencyEdge };
 const NODE_WIDTH = 180;
 const CANVAS_PAD = 40;
 
@@ -70,11 +137,13 @@ export function TaskFlow({
   tasks,
   edges,
   onSelectTask,
+  onSelectConnector,
 }: {
   projectId: string;
   tasks: FlowTask[];
   edges: FlowEdge[];
   onSelectTask: (id: string | null) => void;
+  onSelectConnector: (selected: boolean) => void;
 }) {
   const initialNodes: Node[] = useMemo(
     () =>
@@ -83,6 +152,7 @@ export function TaskFlow({
         type: "task",
         position: { x: t.positionX, y: t.positionY },
         data: t,
+        deletable: false,
       })),
     [tasks],
   );
@@ -91,11 +161,13 @@ export function TaskFlow({
     () =>
       edges.map((e) => ({
         id: e.id,
+        type: "dependency",
         source: e.fromTaskId,
         target: e.toTaskId,
         label: e.lagDays ? `+${e.lagDays}d` : undefined,
-        markerEnd: { type: MarkerType.ArrowClosed, color: "#0d9488" },
-        style: { stroke: "#0d9488" },
+        markerEnd: { type: MarkerType.ArrowClosed, color: DEFAULT_EDGE },
+        style: { stroke: DEFAULT_EDGE, strokeWidth: 2 },
+        interactionWidth: 24,
       })),
     [edges],
   );
@@ -135,6 +207,23 @@ export function TaskFlow({
     [projectId, setEdges, initialEdges],
   );
 
+  const persistEdgeDeletes = useCallback(
+    async (deleted: Edge[]) => {
+      onSelectConnector(false);
+      try {
+        await Promise.all(deleted.map((e) => deleteDependency(e.id)));
+      } catch (err) {
+        alert(
+          err instanceof Error
+            ? err.message
+            : "No se pudo eliminar la dependencia",
+        );
+        setEdges(initialEdges);
+      }
+    },
+    [initialEdges, setEdges, onSelectConnector],
+  );
+
   const onNodeDragStop = useCallback(
     async (_: unknown, node: Node) => {
       await updateTask(node.id, {
@@ -154,11 +243,28 @@ export function TaskFlow({
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onEdgesDelete={persistEdgeDeletes}
+          onEdgeDoubleClick={(_, edge) => {
+            setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+            void persistEdgeDeletes([edge]);
+          }}
           onNodeDragStop={onNodeDragStop}
           onNodeClick={(_, n) => onSelectTask(n.id)}
-          onPaneClick={() => onSelectTask(null)}
+          onEdgeClick={() => onSelectConnector(true)}
+          onPaneClick={() => {
+            onSelectTask(null);
+            onSelectConnector(false);
+          }}
+          deleteKeyCode={["Backspace", "Delete"]}
+          edgesReconnectable={false}
+          defaultEdgeOptions={{
+            type: "dependency",
+            markerEnd: { type: MarkerType.ArrowClosed, color: DEFAULT_EDGE },
+            style: { stroke: DEFAULT_EDGE, strokeWidth: 2 },
+          }}
           onInit={onInit}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           defaultViewport={{ x: 16, y: 16, zoom: 1 }}
           zoomOnScroll={false}
           preventScrolling={false}
@@ -167,6 +273,8 @@ export function TaskFlow({
           <Background gap={16} color="#e2e8f0" />
           <Controls />
           <MiniMap
+            position="top-left"
+            style={{ width: 120, height: 80 }}
             nodeColor={(n) => ((n.data as FlowTask).isCritical ? "#dc2626" : "#0d9488")}
             maskColor="rgb(248,250,252,0.7)"
           />
