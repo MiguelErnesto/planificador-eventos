@@ -30,62 +30,47 @@ export default async function ProjectsPage() {
   }
 
   return (
-    <div className="space-y-10">
-      <section className="space-y-3">
-        <h1
-          className="text-3xl text-slate-900 sm:text-4xl"
-          style={{ fontFamily: "var(--font-brand), serif" }}
-        >
-          Proyectos
-        </h1>
-        <p className="max-w-2xl text-muted">
-          Planifica la logística del evento con dependencias visuales. El camino
-          crítico se recalcula al mover fechas o simular retrasos.
-        </p>
-      </section>
-
+    <div className="-mt-4 space-y-4">
       {dbError && (
         <p className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           {dbError}
         </p>
       )}
 
-      <section className="rounded-2xl border border-border bg-panel p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-slate-800">
-          Nuevo proyecto
-        </h2>
+      <section className="rounded-2xl border border-border bg-panel px-4 py-3 shadow-sm">
         <form
           action={createProjectAction}
-          className="flex flex-col gap-3 sm:flex-row sm:items-end"
+          className="flex flex-col gap-2 sm:flex-row sm:items-end"
         >
-          <label className="flex flex-1 flex-col gap-1 text-sm">
-            <span className="text-muted">Nombre</span>
+          <label className="flex flex-1 flex-col gap-0.5 text-sm">
+            <span className="text-xs italic text-muted">Nuevo</span>
             <input
               name="name"
               required
-              placeholder="Boda Ana & Luis"
-              className="rounded-lg border border-border px-3 py-2 outline-none ring-accent focus:ring-2"
+              placeholder="Nombre del evento, tarea o proyecto..."
+              className="rounded-lg border border-border px-3 py-1.5 outline-none ring-accent placeholder:text-[11px] placeholder:italic focus:ring-2"
             />
           </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-muted">Fecha del evento</span>
+          <label className="flex flex-col gap-0.5 text-sm">
+            <span className="text-xs italic text-muted">Fecha límite</span>
             <input
               type="date"
               name="eventDate"
               required
-              className="rounded-lg border border-border px-3 py-2 outline-none ring-accent focus:ring-2"
+              className="rounded-lg border border-border px-3 py-1.5 outline-none ring-accent focus:ring-2"
             />
           </label>
           <button
             type="submit"
-            className="rounded-lg bg-accent px-4 py-2 font-medium text-white hover:bg-accent-dark"
+            className="rounded-lg bg-accent px-4 py-1.5 font-medium text-white hover:bg-accent-dark"
           >
             Crear
           </button>
         </form>
       </section>
 
-      <section className="space-y-3">
+      <section className="space-y-1">
+        <h2 className="text-lg font-semibold text-slate-800">Eventos / Tareas / Proyectos</h2>
         {projects.length === 0 && !dbError ? (
           <p className="text-muted">
             No hay proyectos. Crea uno o ejecuta{" "}
@@ -99,25 +84,25 @@ export default async function ProjectsPage() {
             {projects.map((p) => (
               <li
                 key={p.id}
-                className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+                className="relative flex flex-col gap-2 px-4 py-2 hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between"
               >
-                <div>
-                  <Link
-                    href={`/projects/${p.id}`}
-                    className="text-lg font-medium text-slate-900 hover:text-accent-dark"
-                  >
-                    {p.name}
-                  </Link>
-                  <p className="text-sm text-muted">
+                <Link
+                  href={`/projects/${p.id}`}
+                  className="absolute inset-0 z-0"
+                  aria-label={`Abrir ${p.name}`}
+                />
+                <div className="pointer-events-none relative z-10">
+                  <p className="text-base font-medium text-slate-900">{p.name}</p>
+                  <p className="text-xs text-muted">
                     Evento:{" "}
                     {formatCalendarDate(p.eventDate, "d MMMM yyyy", { locale: es })} ·{" "}
                     {p._count.tasks} tareas
                   </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="relative z-10 flex gap-2">
                   <Link
                     href={`/projects/${p.id}`}
-                    className="rounded-lg border border-border px-3 py-1.5 text-sm hover:border-accent hover:text-accent-dark"
+                    className="rounded-lg border border-border px-2.5 py-1 text-xs hover:border-accent hover:text-accent-dark"
                   >
                     Abrir
                   </Link>
@@ -125,7 +110,7 @@ export default async function ProjectsPage() {
                     <input type="hidden" name="projectId" value={p.id} />
                     <button
                       type="submit"
-                      className="rounded-lg px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+                      className="rounded-lg border border-border px-2.5 py-1 text-xs text-red-600 hover:bg-red-50"
                     >
                       Eliminar
                     </button>
