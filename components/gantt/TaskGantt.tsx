@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { differenceInCalendarDays, format } from "date-fns";
+import { addDays, differenceInCalendarDays, format, isSameDay, isWeekend } from "date-fns";
 import { es } from "date-fns/locale";
 import { ControlButton } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -114,6 +114,24 @@ export function TaskGantt({
   const dayPx = DAY_PX * zoom;
   const interactive = !locked && !simulation;
 
+  const days = useMemo(
+    () => Array.from({ length: totalDays }, (_, i) => addDays(minDay, i)),
+    [minDay, totalDays],
+  );
+
+  const monthSpans = useMemo(() => {
+    const spans: { label: string; count: number }[] = [];
+    for (const d of days) {
+      const label = format(d, "MMMM yyyy", { locale: es });
+      const last = spans[spans.length - 1];
+      if (last && last.label === label) last.count += 1;
+      else spans.push({ label, count: 1 });
+    }
+    return spans;
+  }, [days]);
+
+  const dayLabelStep = dayPx >= 24 ? 1 : dayPx >= 16 ? 2 : 7;
+
   function clampZoom(value: number) {
     return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, value));
   }
@@ -138,25 +156,52 @@ export function TaskGantt({
       className="w-full overflow-auto rounded-2xl border border-border bg-panel"
     >
       <div className="min-w-full" style={{ width: LABEL_W + totalDays * dayPx }}>
-        <div className="sticky top-0 z-20 flex items-center border-b border-border bg-slate-50 text-xs text-muted">
+        <div className="sticky top-0 z-20 flex items-stretch border-b border-border bg-slate-50 text-xs text-muted">
           <div
-            className="sticky left-0 z-10 bg-slate-50 px-3 py-2 text-base font-bold text-slate-900"
+            className="sticky left-0 z-10 flex items-center bg-slate-50 px-3 text-base font-bold text-slate-900"
             style={{ width: LABEL_W }}
           >
             Tareas
           </div>
-          <div className="relative min-h-[34px] flex-1 py-2">
-            <div
-              className="absolute top-0 bottom-0 border-l-2 border-dashed border-accent"
-              style={{ left: eventOffset * dayPx }}
-              title="Fecha del evento"
-            />
-            <span
-              className="absolute -top-0 text-[10px] text-accent-dark"
-              style={{ left: eventOffset * dayPx + 4 }}
-            >
-              Evento {format(event, "d MMM", { locale: es })}
-            </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex border-b border-border/70">
+              {monthSpans.map((span, i) => (
+                <div
+                  key={`${span.label}-${i}`}
+                  className="truncate border-r border-border/60 px-1 py-0.5 text-center text-[10px] font-semibold capitalize text-slate-600"
+                  style={{ width: span.count * dayPx }}
+                >
+                  {span.label}
+                </div>
+              ))}
+            </div>
+            <div className="flex">
+              {days.map((d, i) => {
+                const isEvent = isSameDay(d, event);
+                const showLabel = i % dayLabelStep === 0;
+                return (
+                  <div
+                    key={d.toISOString()}
+                    title={format(d, "EEEE d MMMM yyyy", { locale: es })}
+                    className={`box-border shrink-0 border-r border-border/40 py-0.5 text-center leading-tight ${
+                      isEvent
+                        ? "bg-accent/20 font-semibold text-accent-dark"
+                        : isWeekend(d)
+                          ? "bg-slate-100/80"
+                          : ""
+                    }`}
+                    style={{ width: dayPx }}
+                  >
+                    {showLabel ? format(d, "d") : ""}
+                    {isEvent && (
+                      <span className="mt-0.5 block text-[8px] font-medium uppercase">
+                        Evento
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
           <div className="sticky right-0 z-30 bg-slate-50 px-2 py-1">
             <div
@@ -239,7 +284,17 @@ export function TaskGantt({
                 >
                   {task.title}
                 </button>
-                <div className="relative h-10 flex-1">
+                <div
+                  className="relative h-10 flex-1"
+                  style={{
+                    backgroundImage: `repeating-linear-gradient(to right, transparent 0, transparent ${dayPx - 1}px, var(--border) ${dayPx - 1}px, var(--border) ${dayPx}px)`,
+                  }}
+                >
+                  <div
+                    className="absolute top-0 bottom-0 z-[1] border-l-2 border-dashed border-accent/70"
+                    style={{ left: eventOffset * dayPx }}
+                    title="Fecha del evento"
+                  />
                   {simulation && simLeft != null && simWidth != null && (
                     <div
                       className="absolute top-1.5 h-7 rounded-md border border-amber-400 bg-amber-200/70"
