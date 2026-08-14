@@ -171,7 +171,7 @@ export function ProjectEditor({
       )}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <TaskFlow
             projectId={projectId}
             tasks={tasks.map((t) => ({

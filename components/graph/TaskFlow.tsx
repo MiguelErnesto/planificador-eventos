@@ -146,8 +146,8 @@ export function TaskFlow({
   );
 
   return (
-    <div className="ml-0 mr-auto h-[380px] w-1/4 min-w-[220px] max-w-full overflow-x-auto overflow-y-hidden rounded-2xl border border-border bg-slate-50">
-      <div className="h-full" style={{ width: canvasWidth ?? "200%" }}>
+    <div className="h-[380px] w-full overflow-x-auto overflow-y-hidden rounded-2xl border border-border bg-slate-50">
+      <div className="h-full min-w-full" style={{ width: canvasWidth ?? "100%" }}>
         <ReactFlow
           nodes={nodes}
           edges={rfEdges}

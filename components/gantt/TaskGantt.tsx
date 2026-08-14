@@ -69,7 +69,7 @@ export function TaskGantt({
   }
 
   return (
-    <div className="overflow-auto rounded-2xl border border-border bg-panel">
+    <div className="w-full overflow-auto rounded-2xl border border-border bg-panel">
       <div className="min-w-full" style={{ width: 200 + totalDays * DAY_PX }}>
         <div className="flex border-b border-border bg-slate-50 text-xs text-muted">
           <div className="sticky left-0 z-10 w-[200px] bg-slate-50 px-3 py-2 font-medium">
