@@ -270,7 +270,8 @@ export function ProjectEditor({
                   name="durationDays"
                   type="number"
                   min={1}
-                  defaultValue={1}
+                  required
+                  placeholder="Días de duración"
                   className="w-full rounded-lg border border-border px-3 py-2 text-sm"
                 />
                 <button
