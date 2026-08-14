@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type CSSProperties } from "react";
 import { addDays, differenceInCalendarDays, format, isSameDay, isWeekend } from "date-fns";
 import { es } from "date-fns/locale";
 import { ControlButton } from "@xyflow/react";
@@ -20,8 +20,7 @@ export type GanttTask = {
 };
 
 const DAY_PX = 28;
-const ZOOM_BTN = "hover:!bg-white";
-const LABEL_W = 200;
+const LABEL_W = 280;
 const ZOOM_MIN = 0.4;
 const ZOOM_MAX = 2.5;
 const ZOOM_STEP = 0.2;
@@ -158,10 +157,59 @@ export function TaskGantt({
       <div className="min-w-full" style={{ width: LABEL_W + totalDays * dayPx }}>
         <div className="sticky top-0 z-20 flex items-stretch border-b border-border bg-slate-50 text-xs text-muted">
           <div
-            className="sticky left-0 z-10 flex items-center bg-slate-50 px-3 text-base font-bold text-slate-900"
+            className="sticky left-0 z-30 flex items-center justify-between gap-2 bg-slate-50 px-3"
             style={{ width: LABEL_W }}
           >
-            Tareas
+            <span className="shrink-0 text-base font-bold text-slate-900">
+              Tareas
+            </span>
+            <span className="inline-flex shrink-0">
+              <span
+                className="react-flow__controls horizontal overflow-hidden rounded-sm border border-border bg-white"
+                style={{
+                    background: "#ffffff",
+                    boxShadow: "none",
+                    ["--xy-controls-button-background-color"]: "#ffffff",
+                    ["--xy-controls-button-border-color"]: "#e2e8f0",
+                  } as CSSProperties}
+                aria-label="Controles de la tabla"
+              >
+                <ControlButton
+                  className="react-flow__controls-zoomin"
+                  title="Acercar"
+                  aria-label="Acercar"
+                  disabled={zoom >= ZOOM_MAX}
+                  onClick={() => setZoom((z) => clampZoom(z + ZOOM_STEP))}
+                >
+                  <PlusIcon />
+                </ControlButton>
+                <ControlButton
+                  className="react-flow__controls-zoomout"
+                  title="Alejar"
+                  aria-label="Alejar"
+                  disabled={zoom <= ZOOM_MIN}
+                  onClick={() => setZoom((z) => clampZoom(z - ZOOM_STEP))}
+                >
+                  <MinusIcon />
+                </ControlButton>
+                <ControlButton
+                  className="react-flow__controls-fitview"
+                  title="Ajustar vista"
+                  aria-label="Ajustar vista"
+                  onClick={fitView}
+                >
+                  <FitViewIcon />
+                </ControlButton>
+                <ControlButton
+                  className="react-flow__controls-interactive"
+                  title={locked ? "Desbloquear" : "Bloquear"}
+                  aria-label={locked ? "Desbloquear" : "Bloquear"}
+                  onClick={() => setLocked((v) => !v)}
+                >
+                  {locked ? <LockIcon /> : <UnlockIcon />}
+                </ControlButton>
+              </span>
+            </span>
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex border-b border-border/70">
@@ -201,48 +249,6 @@ export function TaskGantt({
                   </div>
                 );
               })}
-            </div>
-          </div>
-          <div className="sticky right-0 z-30 bg-slate-50 px-2 py-1">
-            <div
-              className="react-flow__controls horizontal gap-2"
-              style={{ gap: 8, boxShadow: "none" }}
-              aria-label="Controles de la tabla"
-            >
-              <ControlButton
-                className={`react-flow__controls-zoomin ${ZOOM_BTN}`}
-                title="Acercar"
-                aria-label="Acercar"
-                disabled={zoom >= ZOOM_MAX}
-                onClick={() => setZoom((z) => clampZoom(z + ZOOM_STEP))}
-              >
-                <PlusIcon />
-              </ControlButton>
-              <ControlButton
-                className={`react-flow__controls-zoomout ${ZOOM_BTN}`}
-                title="Alejar"
-                aria-label="Alejar"
-                disabled={zoom <= ZOOM_MIN}
-                onClick={() => setZoom((z) => clampZoom(z - ZOOM_STEP))}
-              >
-                <MinusIcon />
-              </ControlButton>
-              <ControlButton
-                className={`react-flow__controls-fitview ${ZOOM_BTN}`}
-                title="Ajustar vista"
-                aria-label="Ajustar vista"
-                onClick={fitView}
-              >
-                <FitViewIcon />
-              </ControlButton>
-              <ControlButton
-                className={`react-flow__controls-interactive ${ZOOM_BTN}`}
-                title={locked ? "Desbloquear" : "Bloquear"}
-                aria-label={locked ? "Desbloquear" : "Bloquear"}
-                onClick={() => setLocked((v) => !v)}
-              >
-                {locked ? <LockIcon /> : <UnlockIcon />}
-              </ControlButton>
             </div>
           </div>
         </div>
