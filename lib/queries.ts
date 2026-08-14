@@ -1,6 +1,19 @@
 import { prisma } from "@/lib/prisma";
+import { APP_TAGLINE, APP_TITLE } from "@/lib/branding";
 import { simulate, runCpm, CpmEdge, CpmTask, DelayPatch } from "@/lib/cpm";
 import { defaultPlanningAnchor, toRelativeDays } from "@/lib/dates";
+
+export async function getSiteSettings() {
+  try {
+    const row = await prisma.siteSettings.findUnique({
+      where: { id: "default" },
+    });
+    if (row) return { title: row.title, tagline: row.tagline };
+  } catch {
+    // La tabla puede no existir aún (antes de migrate).
+  }
+  return { title: APP_TITLE, tagline: APP_TAGLINE };
+}
 
 export type ProjectBundle = NonNullable<Awaited<ReturnType<typeof getProjectBundle>>>;
 

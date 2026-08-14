@@ -69,3 +69,10 @@ model DelayScenario {
 
   @@index([projectId])
 }
+
+model SiteSettings {
+  id        String   @id @default("default")
+  title     String
+  tagline   String
+  updatedAt DateTime @updatedAt
+}

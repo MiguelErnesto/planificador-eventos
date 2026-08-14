@@ -1,10 +1,12 @@
 import { PrismaClient, Prisma } from "@prisma/client";
 import { todayUtcInTimeZone } from "../lib/dates";
 import { recalculateProject } from "../lib/project-cpm";
+import { upsertSiteSettings } from "../lib/branding";
 
 const prisma = new PrismaClient();
 
 async function main() {
+  await upsertSiteSettings(prisma);
   await prisma.dependency.deleteMany();
   await prisma.delayScenario.deleteMany();
   await prisma.task.deleteMany();

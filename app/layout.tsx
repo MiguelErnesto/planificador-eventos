@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Source_Sans_3, Fraunces } from "next/font/google";
 import "./globals.css";
+import { getSiteSettings } from "@/lib/queries";
+import { APP_TITLE, APP_TAGLINE } from "@/lib/branding";
 
 const sans = Source_Sans_3({
   variable: "--font-display",
@@ -13,16 +15,16 @@ const display = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Planificador de Eventos, Tareas y Proyectos",
-  description:
-    "Gestión logística con dependencias visuales y camino crítico (CPM)",
+  title: APP_TITLE,
+  description: APP_TAGLINE,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { title, tagline } = await getSiteSettings();
   return (
     <html lang="es">
       <body className={`${sans.variable} ${display.variable} antialiased`}>
@@ -30,12 +32,12 @@ export default function RootLayout({
           <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
             <a href="/" className="group">
               <p
-                className="text-xl tracking-tight text-accent-dark sm:text-2xl"
+                className="text-2xl tracking-tight text-accent-dark"
                 style={{ fontFamily: "var(--font-brand), serif" }}
               >
-                Planificador de Eventos, Tareas y Proyectos
+                {title}
               </p>
-              <p className="text-sm text-muted">Trace la ruta para su éxito...</p>
+              <p className="text-base text-muted">{tagline}</p>
             </a>
             <nav className="flex gap-4 text-sm text-muted">
               <a href="/projects" className="hover:text-accent-dark">
