@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id         String          @id @default(cuid())
+  name       String
+  eventDate  DateTime
+  timezone   String          @default("Europe/Madrid")
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  tasks      Task[]
+  edges      Dependency[]
+  scenarios  DelayScenario[]
+}
+
+model Task {
+  id             String    @id @default(cuid())
+  projectId      String
+  project        Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title          String
+  durationDays   Int
+  earliestStart  DateTime?
+  earliestFinish DateTime?
+  latestStart    DateTime?
+  latestFinish   DateTime?
+  slackDays      Float     @default(0)
+  isCritical     Boolean   @default(false)
+  fixedStart     DateTime?
+  positionX      Float     @default(0)
+  positionY      Float     @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  outgoing       Dependency[] @relation("from")
+  incoming       Dependency[] @relation("to")
+
+  @@index([projectId])
+}
+
+model Dependency {
+  id         String  @id @default(cuid())
+  projectId  String
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fromTaskId String
+  toTaskId   String
+  fromTask   Task    @relation("from", fields: [fromTaskId], references: [id], onDelete: Cascade)
+  toTask     Task    @relation("to", fields: [toTaskId], references: [id], onDelete: Cascade)
+  lagDays    Int     @default(0)
+  createdAt  DateTime @default(now())
+
+  @@unique([fromTaskId, toTaskId])
+  @@index([projectId])
+}
+
+model DelayScenario {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  patches     Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([projectId])
+}

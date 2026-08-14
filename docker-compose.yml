@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: planificador-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: planificador
+      POSTGRES_PASSWORD: planificador
+      POSTGRES_DB: planificador_eventos
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U planificador -d planificador_eventos"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: planificador-app
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://planificador:planificador@postgres:5432/planificador_eventos?schema=public
+      NODE_ENV: development
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+    volumes:
+      - .:/app
+      - app_node_modules:/app/node_modules
+      - app_next:/app/.next
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["sh", "/app/scripts/entrypoint.sh"]
+    command: ["npm", "run", "dev"]
+    stdin_open: true
+    tty: true
+
+volumes:
+  postgres_data:
+  app_node_modules:
+  app_next:

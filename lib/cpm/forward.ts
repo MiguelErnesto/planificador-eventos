@@ -1,0 +1,38 @@
+import { CpmEdge, CpmTask } from "./types";
+import { topologicalSort } from "./topological";
+
+export type ForwardResult = {
+  ES: Record<string, number>;
+  EF: Record<string, number>;
+  projectDuration: number;
+};
+
+export function forwardPass(tasks: CpmTask[], edges: CpmEdge[]): ForwardResult {
+  const byId = new Map(tasks.map((t) => [t.id, t]));
+  const preds = new Map<string, CpmEdge[]>();
+  for (const t of tasks) preds.set(t.id, []);
+  for (const e of edges) preds.get(e.to)!.push(e);
+
+  const order = topologicalSort(tasks, edges);
+  const ES: Record<string, number> = {};
+  const EF: Record<string, number> = {};
+
+  for (const id of order) {
+    const task = byId.get(id)!;
+    const incoming = preds.get(id) ?? [];
+    let es = 0;
+    if (incoming.length > 0) {
+      es = Math.max(
+        ...incoming.map((e) => (EF[e.from] ?? 0) + (e.lag ?? 0)),
+      );
+    }
+    if (task.fixedStart !== undefined) {
+      es = Math.max(es, task.fixedStart);
+    }
+    ES[id] = es;
+    EF[id] = es + task.duration;
+  }
+
+  const projectDuration = Math.max(0, ...Object.values(EF));
+  return { ES, EF, projectDuration };
+}
