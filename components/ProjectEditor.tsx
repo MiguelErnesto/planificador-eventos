@@ -25,6 +25,7 @@ import {
   toAbsoluteDate,
   toRelativeDays,
   calendarDate,
+  addCalendarDays,
 } from "@/lib/dates";
 
 type Scenario = {
@@ -133,6 +134,35 @@ export function ProjectEditor({
 
   const exceeds = simActive && simDuration > eventDayRelative;
 
+  const planRange = useMemo(() => {
+    const durationDays = simDuration;
+    const startDates = simTasks
+      .flatMap((t) =>
+        simActive
+          ? [t.simulatedStart ?? t.earliestStart]
+          : [t.earliestStart],
+      )
+      .filter(Boolean)
+      .map((d) => calendarDate(d as Date | string));
+    const endDates = simTasks
+      .flatMap((t) =>
+        simActive
+          ? [t.simulatedFinish ?? t.earliestFinish]
+          : [t.earliestFinish],
+      )
+      .filter(Boolean)
+      .map((d) => calendarDate(d as Date | string));
+
+    const startDate = startDates.length
+      ? startDates.reduce((a, b) => (a < b ? a : b))
+      : calendarDate(eventDate);
+    const endDate = endDates.length
+      ? endDates.reduce((a, b) => (a > b ? a : b))
+      : addCalendarDays(startDate, Math.max(durationDays, 0));
+
+    return { startDate, endDate, durationDays };
+  }, [simTasks, simActive, simDuration, eventDate]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -143,12 +173,21 @@ export function ProjectEditor({
           >
             {projectName}
           </h1>
-          <p className="text-sm text-muted">
-            Evento:{" "}
-            {format(calendarDate(eventDate), "d MMMM yyyy", { locale: es })} ·
-            duración base {baseDuration} días
-            {pending ? " · guardando…" : ""}
-          </p>
+          <div className="text-sm text-muted">
+            <p>
+              Inicia:{" "}
+              {format(planRange.startDate, "d MMMM yyyy", { locale: es })}
+            </p>
+            <p>
+              Termina:{" "}
+              {format(planRange.endDate, "d MMMM yyyy", { locale: es })}
+            </p>
+            <p>
+              Duración: {planRange.durationDays}{" "}
+              {planRange.durationDays === 1 ? "día" : "días"}
+              {pending ? " · guardando…" : ""}
+            </p>
+          </div>
         </div>
       </div>
 
