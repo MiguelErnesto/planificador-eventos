@@ -13,7 +13,7 @@ const display = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Planificador de Eventos y Bodas",
+  title: "Planificador de Eventos, Tareas y Proyectos",
   description:
     "Gestión logística con dependencias visuales y camino crítico (CPM)",
 };
@@ -33,9 +33,9 @@ export default function RootLayout({
                 className="text-xl tracking-tight text-accent-dark sm:text-2xl"
                 style={{ fontFamily: "var(--font-brand), serif" }}
               >
-                Planificador
+                Planificador de Eventos, Tareas y Proyectos
               </p>
-              <p className="text-xs text-muted">Eventos y bodas · logística CPM</p>
+              <p className="text-sm text-muted">Trace la ruta para su éxito...</p>
             </a>
             <nav className="flex gap-4 text-sm text-muted">
               <a href="/projects" className="hover:text-accent-dark">
