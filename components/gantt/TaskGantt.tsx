@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { differenceInCalendarDays, format, startOfDay } from "date-fns";
+import { differenceInCalendarDays, format } from "date-fns";
 import { es } from "date-fns/locale";
 import { updateTask } from "@/lib/actions";
+import { calendarDate, toUtcDateIso } from "@/lib/dates";
 
 export type GanttTask = {
   id: string;
@@ -29,7 +30,7 @@ export function TaskGantt({
   simulation?: boolean;
   onSelectTask: (id: string) => void;
 }) {
-  const event = startOfDay(new Date(eventDate));
+  const event = calendarDate(eventDate);
   const [dragging, setDragging] = useState<string | null>(null);
   const dragStartX = useRef(0);
   const dragOriginDays = useRef(0);
@@ -37,14 +38,14 @@ export function TaskGantt({
   const { minDay, maxDay, rows } = useMemo(() => {
     const starts = tasks
       .flatMap((t) => [
-        t.earliestStart ? startOfDay(new Date(t.earliestStart)) : null,
-        t.simulatedStart ? startOfDay(new Date(t.simulatedStart)) : null,
+        t.earliestStart ? calendarDate(t.earliestStart) : null,
+        t.simulatedStart ? calendarDate(t.simulatedStart) : null,
       ])
       .filter(Boolean) as Date[];
     const finishes = tasks
       .flatMap((t) => [
-        t.earliestFinish ? startOfDay(new Date(t.earliestFinish)) : null,
-        t.simulatedFinish ? startOfDay(new Date(t.simulatedFinish)) : null,
+        t.earliestFinish ? calendarDate(t.earliestFinish) : null,
+        t.simulatedFinish ? calendarDate(t.simulatedFinish) : null,
       ])
       .filter(Boolean) as Date[];
 
@@ -63,9 +64,9 @@ export function TaskGantt({
 
   async function commitShift(task: GanttTask, deltaDays: number) {
     if (!task.earliestStart || deltaDays === 0) return;
-    const next = startOfDay(new Date(task.earliestStart));
+    const next = calendarDate(task.earliestStart);
     next.setDate(next.getDate() + deltaDays);
-    await updateTask(task.id, { fixedStart: next.toISOString() });
+    await updateTask(task.id, { fixedStart: toUtcDateIso(next) });
   }
 
   return (
@@ -92,13 +93,13 @@ export function TaskGantt({
 
         {rows.map((task) => {
           const start = task.earliestStart
-            ? startOfDay(new Date(task.earliestStart))
+            ? calendarDate(task.earliestStart)
             : minDay;
           const left = differenceInCalendarDays(start, minDay) * DAY_PX;
           const width = Math.max(task.durationDays, 1) * DAY_PX;
 
           const simStart = task.simulatedStart
-            ? startOfDay(new Date(task.simulatedStart))
+            ? calendarDate(task.simulatedStart)
             : null;
           const simLeft = simStart
             ? differenceInCalendarDays(simStart, minDay) * DAY_PX
@@ -106,7 +107,7 @@ export function TaskGantt({
           const simWidth = task.simulatedFinish && simStart
             ? Math.max(
                 differenceInCalendarDays(
-                  startOfDay(new Date(task.simulatedFinish)),
+                  calendarDate(task.simulatedFinish),
                   simStart,
                 ),
                 1,
