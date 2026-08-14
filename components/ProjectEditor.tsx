@@ -230,7 +230,10 @@ export function ProjectEditor({
             }}
             onSelectConnector={(selected) => {
               setConnectorSelected(selected);
-              if (selected) setSelectedId(null);
+              if (selected) {
+                setSelectedId(null);
+                setNewTaskOpen(false);
+              }
             }}
           />
         </div>
@@ -290,7 +293,7 @@ export function ProjectEditor({
               {selected && (
                 <button
                   type="button"
-                  className="rounded-lg border border-red-600 px-2 py-0.5 text-xs text-red-600 hover:bg-red-50"
+                  className="rounded-lg border border-red-600 px-2 py-0.5 text-[11px] text-red-600 hover:bg-red-50 hover:italic"
                   onClick={() =>
                     startTransition(async () => {
                       await deleteTask(selected.id);
@@ -382,14 +385,6 @@ export function ProjectEditor({
               </div>
             )}
           </div>
-          {connectorSelected && (
-            <p
-              role="tooltip"
-              className="rounded-md bg-critical px-2.5 py-1.5 text-[11px] font-medium text-white shadow-md"
-            >
-              Para borrar el elemento presione DELETE
-            </p>
-          )}
         </aside>
 
         <div className="min-w-0 lg:col-span-2">

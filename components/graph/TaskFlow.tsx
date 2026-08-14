@@ -8,6 +8,7 @@ import {
   MiniMap,
   MarkerType,
   BaseEdge,
+  EdgeLabelRenderer,
   getBezierPath,
   type Node,
   type Edge,
@@ -82,7 +83,7 @@ function DependencyEdge({
   style,
   interactionWidth,
 }: EdgeProps) {
-  const [edgePath] = getBezierPath({
+  const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
     sourcePosition,
@@ -124,6 +125,28 @@ function DependencyEdge({
         style={{ ...style, stroke: color, strokeWidth: selected ? 3 : 2 }}
         interactionWidth={interactionWidth ?? 24}
       />
+      {selected && (
+        <EdgeLabelRenderer>
+          <div
+            role="tooltip"
+            className="nodrag nopan pointer-events-none"
+            style={{
+              position: "absolute",
+              transform: `translate(-50%, calc(-100% - 22px)) translate(${labelX}px, ${labelY}px)`,
+              zIndex: 1001,
+              pointerEvents: "none",
+            }}
+          >
+            <div className="relative max-w-[160px] rounded bg-red-400 px-1.5 py-1 text-center text-[10px] leading-tight font-medium italic text-white shadow-md">
+              Doble click sobre el conector para borrarlo.
+              <span
+                aria-hidden
+                className="absolute bottom-0 left-1/2 h-1.5 w-1.5 -translate-x-1/2 translate-y-1/2 rotate-45 bg-red-400"
+              />
+            </div>
+          </div>
+        </EdgeLabelRenderer>
+      )}
     </>
   );
 }
@@ -237,49 +260,50 @@ export function TaskFlow({
   return (
     <div className="h-[380px] w-full overflow-x-auto overflow-y-hidden rounded-2xl border border-border bg-slate-50">
       <div className="h-full min-w-full" style={{ width: canvasWidth ?? "100%" }}>
-        <ReactFlow
-          nodes={nodes}
-          edges={rfEdges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onEdgesDelete={persistEdgeDeletes}
-          onEdgeDoubleClick={(_, edge) => {
-            setEdges((eds) => eds.filter((e) => e.id !== edge.id));
-            void persistEdgeDeletes([edge]);
-          }}
-          onNodeDragStop={onNodeDragStop}
-          onNodeClick={(_, n) => onSelectTask(n.id)}
-          onEdgeClick={() => onSelectConnector(true)}
-          onPaneClick={() => {
-            onSelectTask(null);
-            onSelectConnector(false);
-          }}
-          deleteKeyCode={["Backspace", "Delete"]}
-          edgesReconnectable={false}
-          defaultEdgeOptions={{
-            type: "dependency",
-            markerEnd: { type: MarkerType.ArrowClosed, color: DEFAULT_EDGE },
-            style: { stroke: DEFAULT_EDGE, strokeWidth: 2 },
-          }}
-          onInit={onInit}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          defaultViewport={{ x: 16, y: 16, zoom: 1 }}
-          zoomOnScroll={false}
-          preventScrolling={false}
-          proOptions={{ hideAttribution: true }}
-        >
-          <Background gap={16} color="#e2e8f0" />
-          <Controls />
-          <MiniMap
-            position="top-left"
-            style={{ width: 120, height: 80 }}
-            nodeColor={(n) => ((n.data as FlowTask).isCritical ? "#dc2626" : "#0d9488")}
-            maskColor="rgb(248,250,252,0.7)"
-          />
-        </ReactFlow>
-      </div>
+          <ReactFlow
+            className="[&_.react-flow__edgelabel-renderer]:z-[1001]"
+            nodes={nodes}
+            edges={rfEdges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onEdgesDelete={persistEdgeDeletes}
+            onEdgeDoubleClick={(_, edge) => {
+              setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+              void persistEdgeDeletes([edge]);
+            }}
+            onNodeDragStop={onNodeDragStop}
+            onNodeClick={(_, n) => onSelectTask(n.id)}
+            onEdgeClick={() => onSelectConnector(true)}
+            onPaneClick={() => {
+              onSelectTask(null);
+              onSelectConnector(false);
+            }}
+            deleteKeyCode={["Backspace", "Delete"]}
+            edgesReconnectable={false}
+            defaultEdgeOptions={{
+              type: "dependency",
+              markerEnd: { type: MarkerType.ArrowClosed, color: DEFAULT_EDGE },
+              style: { stroke: DEFAULT_EDGE, strokeWidth: 2 },
+            }}
+            onInit={onInit}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            defaultViewport={{ x: 16, y: 16, zoom: 1 }}
+            zoomOnScroll={false}
+            preventScrolling={false}
+            proOptions={{ hideAttribution: true }}
+          >
+            <Background gap={16} color="#e2e8f0" />
+            <Controls />
+            <MiniMap
+              position="top-left"
+              style={{ width: 120, height: 80 }}
+              nodeColor={(n) => ((n.data as FlowTask).isCritical ? "#dc2626" : "#0d9488")}
+              maskColor="rgb(248,250,252,0.7)"
+            />
+          </ReactFlow>
+        </div>
     </div>
   );
 }
