@@ -285,13 +285,13 @@ export function TaskGantt({
                 <button
                   type="button"
                   onClick={() => onSelectTask(task.id)}
-                  className="sticky left-0 z-10 truncate bg-panel px-3 py-3 text-left text-sm hover:text-accent-dark"
+                  className="sticky left-0 z-10 truncate bg-panel px-3 py-1 text-left text-sm hover:text-accent-dark"
                   style={{ width: LABEL_W }}
                 >
                   {task.title}
                 </button>
                 <div
-                  className="relative h-10 flex-1"
+                  className="relative h-9 flex-1"
                   style={{
                     backgroundImage: `repeating-linear-gradient(to right, transparent 0, transparent ${dayPx - 1}px, var(--border) ${dayPx - 1}px, var(--border) ${dayPx}px)`,
                   }}
@@ -303,7 +303,7 @@ export function TaskGantt({
                   />
                   {simulation && simLeft != null && simWidth != null && (
                     <div
-                      className="absolute top-1.5 h-7 rounded-md border border-amber-400 bg-amber-200/70"
+                      className="absolute top-1 h-7 rounded-md border border-amber-400 bg-amber-200/70"
                       style={{ left: simLeft, width: simWidth }}
                     />
                   )}
@@ -330,7 +330,7 @@ export function TaskGantt({
                       window.addEventListener("mousemove", onMove);
                       window.addEventListener("mouseup", onUp);
                     }}
-                    className={`absolute top-1.5 h-7 rounded-md text-[10px] leading-7 text-white ${
+                    className={`absolute top-1 h-7 rounded-md text-[10px] leading-7 text-white ${
                       interactive
                         ? "cursor-grab active:cursor-grabbing"
                         : "cursor-default"
