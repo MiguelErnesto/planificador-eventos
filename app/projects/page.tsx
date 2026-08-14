@@ -94,9 +94,17 @@ export default async function ProjectsPage() {
                 <div className="pointer-events-none relative z-10">
                   <p className="text-base font-medium text-slate-900">{p.name}</p>
                   <p className="text-xs text-muted">
-                    Evento:{" "}
-                    {formatCalendarDate(p.eventDate, "d MMMM yyyy", { locale: es })} ·{" "}
-                    {p._count.tasks} tareas
+                    Inicia:{" "}
+                    {formatCalendarDate(p.startsAt, "d MMMM yyyy", {
+                      locale: es,
+                    })}{" "}
+                    - Termina:{" "}
+                    {formatCalendarDate(p.endsAt, "d MMMM yyyy", {
+                      locale: es,
+                    })}{" "}
+                    - Duración: {p.durationDays}{" "}
+                    {p.durationDays === 1 ? "día" : "días"} - {p.taskCount}{" "}
+                    {p.taskCount === 1 ? "tarea" : "tareas"}
                   </p>
                 </div>
                 <div className="relative z-10 flex gap-2">
