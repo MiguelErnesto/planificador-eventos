@@ -24,6 +24,7 @@ import {
   defaultPlanningAnchor,
   toAbsoluteDate,
   toRelativeDays,
+  calendarDate,
 } from "@/lib/dates";
 
 type Scenario = {
@@ -79,13 +80,13 @@ export function ProjectEditor({
   );
 
   const simulation = useMemo(() => {
-    const anchor = defaultPlanningAnchor(new Date(eventDate));
+    const anchor = defaultPlanningAnchor(calendarDate(eventDate));
     const cpmTasks: CpmTask[] = tasks.map((t) => ({
       id: t.id,
       duration: t.durationDays,
       fixedStart:
         t.fixedStart != null
-          ? toRelativeDays(new Date(t.fixedStart), anchor)
+          ? toRelativeDays(calendarDate(t.fixedStart), anchor)
           : undefined,
     }));
     const cpmEdges: CpmEdge[] = edges.map((e) => ({
@@ -140,7 +141,7 @@ export function ProjectEditor({
           </h1>
           <p className="text-sm text-muted">
             Evento:{" "}
-            {format(new Date(eventDate), "d MMMM yyyy", { locale: es })} ·
+            {format(calendarDate(eventDate), "d MMMM yyyy", { locale: es })} ·
             duración base {baseDuration} días
             {pending ? " · guardando…" : ""}
           </p>
@@ -171,7 +172,7 @@ export function ProjectEditor({
       )}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
-        <div className="min-w-0 space-y-6">
+        <div className="min-w-0">
           <TaskFlow
             projectId={projectId}
             tasks={tasks.map((t) => ({
@@ -180,12 +181,6 @@ export function ProjectEditor({
                 simulation.result.byId[t.id]?.critical ?? t.isCritical,
             }))}
             edges={edges}
-            onSelectTask={setSelectedId}
-          />
-          <TaskGantt
-            tasks={simTasks}
-            eventDate={eventDate}
-            simulation={simActive}
             onSelectTask={setSelectedId}
           />
         </div>
@@ -255,11 +250,11 @@ export function ProjectEditor({
                 </p>
                 {selected.earliestStart && selected.earliestFinish && (
                   <p className="text-muted">
-                    {format(new Date(selected.earliestStart), "d MMM", {
+                    {format(calendarDate(selected.earliestStart), "d MMM", {
                       locale: es,
                     })}{" "}
                     →{" "}
-                    {format(new Date(selected.earliestFinish), "d MMM", {
+                    {format(calendarDate(selected.earliestFinish), "d MMM", {
                       locale: es,
                     })}
                   </p>
@@ -318,6 +313,15 @@ export function ProjectEditor({
             )}
           </div>
         </aside>
+
+        <div className="min-w-0 lg:col-span-2">
+          <TaskGantt
+            tasks={simTasks}
+            eventDate={eventDate}
+            simulation={simActive}
+            onSelectTask={setSelectedId}
+          />
+        </div>
       </div>
     </div>
   );
