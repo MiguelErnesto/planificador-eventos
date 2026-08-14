@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { format } from "date-fns";
+import { formatCalendarDate } from "@/lib/dates";
 import { es } from "date-fns/locale";
 import { listProjects } from "@/lib/queries";
 import { createProject, deleteProject } from "@/lib/actions";
@@ -110,7 +110,7 @@ export default async function ProjectsPage() {
                   </Link>
                   <p className="text-sm text-muted">
                     Evento:{" "}
-                    {format(p.eventDate, "d MMMM yyyy", { locale: es })} ·{" "}
+                    {formatCalendarDate(p.eventDate, "d MMMM yyyy", { locale: es })} ·{" "}
                     {p._count.tasks} tareas
                   </p>
                 </div>

@@ -1,12 +1,12 @@
 "use client";
 
 import { useMemo, useRef, useState, type CSSProperties } from "react";
-import { addDays, differenceInCalendarDays, format, isSameDay, isWeekend } from "date-fns";
+import { differenceInCalendarDays, format, isSameDay, isWeekend } from "date-fns";
 import { es } from "date-fns/locale";
 import { ControlButton } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { updateTask } from "@/lib/actions";
-import { calendarDate, toUtcDateIso } from "@/lib/dates";
+import { calendarDate, toUtcDateIso, addCalendarDays } from "@/lib/dates";
 
 export type GanttTask = {
   id: string;
@@ -114,7 +114,7 @@ export function TaskGantt({
   const interactive = !locked && !simulation;
 
   const days = useMemo(
-    () => Array.from({ length: totalDays }, (_, i) => addDays(minDay, i)),
+    () => Array.from({ length: totalDays }, (_, i) => addCalendarDays(minDay, i)),
     [minDay, totalDays],
   );
 

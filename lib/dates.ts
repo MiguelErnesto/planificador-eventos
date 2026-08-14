@@ -1,16 +1,34 @@
-import { addDays, differenceInCalendarDays, startOfDay } from "date-fns";
+import { format, type FormatOptions } from "date-fns";
+
+/** UTC Y-M-D of an instant. Avoids Docker vs browser timezone shifts. */
+export function utcYmd(value: Date | string): { y: number; m: number; d: number } {
+  const d = typeof value === "string" ? new Date(value) : value;
+  return {
+    y: d.getUTCFullYear(),
+    m: d.getUTCMonth(),
+    d: d.getUTCDate(),
+  };
+}
 
 /**
- * Read the UTC calendar day from an ISO instant and return a local Date at
- * midnight on that same Y-M-D. Keeps SSR and the browser aligned when they
- * do not share a timezone.
+ * Interpret an ISO/UTC instant as a calendar day and return a local Date at
+ * midnight on that same Y-M-D, so SSR and the browser show the same date.
  */
 export function calendarDate(value: Date | string): Date {
-  if (typeof value === "string") {
-    const d = new Date(value);
-    return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
-  }
-  return startOfDay(value);
+  const { y, m, d } = utcYmd(value);
+  return new Date(y, m, d);
+}
+
+export function addCalendarDays(date: Date, amount: number): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + amount);
+}
+
+export function formatCalendarDate(
+  value: Date | string,
+  pattern: string,
+  options?: FormatOptions,
+): string {
+  return format(calendarDate(value), pattern, options);
 }
 
 /** Persist a local calendar day as UTC midnight so the day does not shift. */
@@ -20,13 +38,19 @@ export function toUtcDateIso(date: Date): string {
   ).toISOString();
 }
 
+function utcDayIndex(value: Date | string): number {
+  const { y, m, d } = utcYmd(value);
+  return Date.UTC(y, m, d) / 86_400_000;
+}
+
 /** Day 0 = start of projectAnchor (usually earliest planning day or eventDate - N). */
 export function toRelativeDays(date: Date, anchor: Date): number {
-  return differenceInCalendarDays(startOfDay(date), startOfDay(anchor));
+  return Math.round(utcDayIndex(date) - utcDayIndex(anchor));
 }
 
 export function toAbsoluteDate(day: number, anchor: Date): Date {
-  return addDays(startOfDay(anchor), day);
+  const { y, m, d } = utcYmd(anchor);
+  return new Date(Date.UTC(y, m, d + day));
 }
 
 /**
@@ -34,5 +58,18 @@ export function toAbsoluteDate(day: number, anchor: Date): Date {
  * for typical wedding prep. Callers may also pass an explicit planningStart.
  */
 export function defaultPlanningAnchor(eventDate: Date, lookbackDays = 180): Date {
-  return addDays(startOfDay(eventDate), -lookbackDays);
+  const { y, m, d } = utcYmd(eventDate);
+  return new Date(Date.UTC(y, m, d - lookbackDays));
+}
+
+/** Today's calendar date in a IANA timezone, stored as UTC midnight. */
+export function todayUtcInTimeZone(timeZone: string): Date {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const [y, m, d] = parts.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
 }

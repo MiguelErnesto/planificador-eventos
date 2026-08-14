@@ -1,5 +1,5 @@
 import { PrismaClient, Prisma } from "@prisma/client";
-import { addDays, startOfDay } from "date-fns";
+import { todayUtcInTimeZone } from "../lib/dates";
 import { recalculateProject } from "../lib/project-cpm";
 
 const prisma = new PrismaClient();
@@ -10,7 +10,14 @@ async function main() {
   await prisma.task.deleteMany();
   await prisma.project.deleteMany();
 
-  const eventDate = startOfDay(addDays(new Date(), 90));
+  const today = todayUtcInTimeZone("Europe/Madrid");
+  const eventDate = new Date(
+    Date.UTC(
+      today.getUTCFullYear(),
+      today.getUTCMonth(),
+      today.getUTCDate() + 90,
+    ),
+  );
 
   const project = await prisma.project.create({
     data: {

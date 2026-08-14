@@ -21,7 +21,7 @@ export async function createProject(formData: FormData) {
   const project = await prisma.project.create({
     data: {
       name,
-      eventDate: new Date(eventDateRaw),
+      eventDate: new Date(`${eventDateRaw}T00:00:00.000Z`),
     },
   });
   revalidatePath("/");
