@@ -10,6 +10,7 @@ import {
   type Node,
   type Edge,
   type NodeProps,
+  type ReactFlowInstance,
   Handle,
   Position,
   useNodesState,
@@ -61,6 +62,8 @@ function TaskNode({ data }: NodeProps) {
 }
 
 const nodeTypes = { task: TaskNode };
+const NODE_WIDTH = 180;
+const CANVAS_PAD = 40;
 
 export function TaskFlow({
   projectId,
@@ -105,6 +108,19 @@ export function TaskFlow({
     setEdges(initialEdges);
   }, [initialNodes, initialEdges, setNodes, setEdges]);
 
+  const canvasWidth = useMemo(() => {
+    if (tasks.length === 0) return undefined;
+    const maxX = Math.max(...tasks.map((t) => t.positionX));
+    return maxX + NODE_WIDTH + CANVAS_PAD;
+  }, [tasks]);
+
+  const onInit = useCallback((instance: ReactFlowInstance) => {
+    const ns = instance.getNodes();
+    const minX = ns.length ? Math.min(...ns.map((n) => n.position.x)) : 0;
+    const minY = ns.length ? Math.min(...ns.map((n) => n.position.y)) : 0;
+    instance.setViewport({ x: -minX + 16, y: -minY + 16, zoom: 1 });
+  }, []);
+
   const onConnect = useCallback(
     async (connection: Connection) => {
       if (!connection.source || !connection.target) return;
@@ -130,27 +146,32 @@ export function TaskFlow({
   );
 
   return (
-    <div className="h-[380px] overflow-hidden rounded-2xl border border-border bg-slate-50">
-      <ReactFlow
-        nodes={nodes}
-        edges={rfEdges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onNodeDragStop={onNodeDragStop}
-        onNodeClick={(_, n) => onSelectTask(n.id)}
-        onPaneClick={() => onSelectTask(null)}
-        nodeTypes={nodeTypes}
-        fitView
-        proOptions={{ hideAttribution: true }}
-      >
-        <Background gap={16} color="#e2e8f0" />
-        <Controls />
-        <MiniMap
-          nodeColor={(n) => ((n.data as FlowTask).isCritical ? "#dc2626" : "#0d9488")}
-          maskColor="rgb(248,250,252,0.7)"
-        />
-      </ReactFlow>
+    <div className="ml-0 mr-auto h-[380px] w-1/4 min-w-[220px] max-w-full overflow-x-auto overflow-y-hidden rounded-2xl border border-border bg-slate-50">
+      <div className="h-full" style={{ width: canvasWidth ?? "200%" }}>
+        <ReactFlow
+          nodes={nodes}
+          edges={rfEdges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onNodeDragStop={onNodeDragStop}
+          onNodeClick={(_, n) => onSelectTask(n.id)}
+          onPaneClick={() => onSelectTask(null)}
+          onInit={onInit}
+          nodeTypes={nodeTypes}
+          defaultViewport={{ x: 16, y: 16, zoom: 1 }}
+          zoomOnScroll={false}
+          preventScrolling={false}
+          proOptions={{ hideAttribution: true }}
+        >
+          <Background gap={16} color="#e2e8f0" />
+          <Controls />
+          <MiniMap
+            nodeColor={(n) => ((n.data as FlowTask).isCritical ? "#dc2626" : "#0d9488")}
+            maskColor="rgb(248,250,252,0.7)"
+          />
+        </ReactFlow>
+      </div>
     </div>
   );
 }
