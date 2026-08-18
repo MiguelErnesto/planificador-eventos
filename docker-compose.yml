@@ -4,6 +4,7 @@ services:
     container_name: planificador-postgres
     restart: unless-stopped
     environment:
+      TZ: Europe/Madrid
       POSTGRES_USER: planificador
       POSTGRES_PASSWORD: planificador
       POSTGRES_DB: planificador_eventos
@@ -26,6 +27,7 @@ services:
     ports:
       - "3000:3000"
     environment:
+      TZ: Europe/Madrid
       DATABASE_URL: postgresql://planificador:planificador@postgres:5432/planificador_eventos?schema=public
       NODE_ENV: development
       WATCHPACK_POLLING: "true"

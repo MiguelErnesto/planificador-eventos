@@ -26,11 +26,6 @@ export type CpmResult = {
   criticalPath: string[];
 };
 
-export type DelayPatch = {
-  taskId: string;
-  extraDays: number;
-};
-
 export class CpmError extends Error {
   constructor(message: string) {
     super(message);

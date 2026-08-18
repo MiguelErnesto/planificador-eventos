@@ -4,34 +4,14 @@ import { useMemo, useState, useTransition } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { TaskFlow, type FlowTask, type FlowEdge } from "@/components/graph/TaskFlow";
-import { TaskGantt, type GanttTask } from "@/components/gantt/TaskGantt";
-import { DelayBanner } from "@/components/simulation/DelayBanner";
+import { TaskGantt } from "@/components/gantt/TaskGantt";
 import {
-  applyScenarioPatches,
   createTask,
   deleteDependency,
   deleteTask,
   updateTask,
 } from "@/lib/actions";
-import {
-  runCpm,
-  simulate,
-  type CpmEdge,
-  type CpmTask,
-  type DelayPatch,
-} from "@/lib/cpm";
-import {
-  defaultPlanningAnchor,
-  toAbsoluteDate,
-  toRelativeDays,
-} from "@/lib/dates";
-
-type Scenario = {
-  id: string;
-  name: string;
-  description: string | null;
-  patches: unknown;
-};
+import { calendarDate, addCalendarDays } from "@/lib/dates";
 
 type Task = FlowTask & {
   earliestStart: Date | string | null;
@@ -49,84 +29,44 @@ export function ProjectEditor({
   eventDate,
   tasks,
   edges,
-  scenarios,
   baseDuration,
-  eventDayRelative,
 }: {
   projectId: string;
   projectName: string;
   eventDate: string;
   tasks: Task[];
   edges: Edge[];
-  scenarios: Scenario[];
   baseDuration: number;
-  eventDayRelative: number;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [simActive, setSimActive] = useState(false);
-  const [scenarioId, setScenarioId] = useState(scenarios[0]?.id ?? null);
+  const [connectorSelected, setConnectorSelected] = useState(false);
+  const [newTaskOpen, setNewTaskOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
-  const selected = tasks.find((t) => t.id === selectedId) ?? null;
-  const scenario = scenarios.find((s) => s.id === scenarioId) ?? null;
-  const patches = (Array.isArray(scenario?.patches)
-    ? scenario!.patches
-    : []) as DelayPatch[];
+  const selected = connectorSelected
+    ? null
+    : (tasks.find((t) => t.id === selectedId) ?? null);
 
-  const extraByTask = useMemo(
-    () => new Map(patches.map((p) => [p.taskId, p.extraDays])),
-    [patches],
-  );
+  const planRange = useMemo(() => {
+    const durationDays = baseDuration;
+    const startDates = tasks
+      .map((t) => t.earliestStart)
+      .filter(Boolean)
+      .map((d) => calendarDate(d as Date | string));
+    const endDates = tasks
+      .map((t) => t.earliestFinish)
+      .filter(Boolean)
+      .map((d) => calendarDate(d as Date | string));
 
-  const simulation = useMemo(() => {
-    const anchor = defaultPlanningAnchor(new Date(eventDate));
-    const cpmTasks: CpmTask[] = tasks.map((t) => ({
-      id: t.id,
-      duration: t.durationDays,
-      fixedStart:
-        t.fixedStart != null
-          ? toRelativeDays(new Date(t.fixedStart), anchor)
-          : undefined,
-    }));
-    const cpmEdges: CpmEdge[] = edges.map((e) => ({
-      from: e.fromTaskId,
-      to: e.toTaskId,
-      lag: e.lagDays,
-    }));
-    const preliminary = runCpm(cpmTasks, cpmEdges);
-    const horizon = Math.max(preliminary.projectDuration, eventDayRelative);
-    const result =
-      simActive && patches.length > 0
-        ? simulate(cpmTasks, cpmEdges, patches, { horizon })
-        : runCpm(cpmTasks, cpmEdges, { horizon });
-    return { result, anchor };
-  }, [tasks, edges, eventDate, eventDayRelative, simActive, patches]);
+    const startDate = startDates.length
+      ? startDates.reduce((a, b) => (a < b ? a : b))
+      : calendarDate(eventDate);
+    const endDate = endDates.length
+      ? endDates.reduce((a, b) => (a > b ? a : b))
+      : addCalendarDays(startDate, Math.max(durationDays, 0));
 
-  const simTasks: GanttTask[] = useMemo(() => {
-    const { result, anchor } = simulation;
-    return tasks.map((t) => {
-      const r = result.byId[t.id];
-      const bump = extraByTask.get(t.id) ?? 0;
-      return {
-        id: t.id,
-        title: t.title,
-        durationDays: t.durationDays + (simActive ? bump : 0),
-        earliestStart: t.earliestStart,
-        earliestFinish: t.earliestFinish,
-        isCritical: r?.critical ?? t.isCritical,
-        simulatedStart:
-          simActive && r ? toAbsoluteDate(r.ES, anchor) : undefined,
-        simulatedFinish:
-          simActive && r ? toAbsoluteDate(r.EF, anchor) : undefined,
-      };
-    });
-  }, [tasks, simulation, simActive, extraByTask]);
-
-  const simDuration = simActive
-    ? simulation.result.projectDuration
-    : baseDuration;
-
-  const exceeds = simActive && simDuration > eventDayRelative;
+    return { startDate, endDate, durationDays };
+  }, [tasks, baseDuration, eventDate]);
 
   return (
     <div className="space-y-6">
@@ -138,93 +78,111 @@ export function ProjectEditor({
           >
             {projectName}
           </h1>
-          <p className="text-sm text-muted">
-            Evento:{" "}
-            {format(new Date(eventDate), "d MMMM yyyy", { locale: es })} ·
-            duración base {baseDuration} días
-            {pending ? " · guardando…" : ""}
-          </p>
+          <div className="text-sm text-muted">
+            <p>
+              Inicia:{" "}
+              {format(planRange.startDate, "d MMMM yyyy", { locale: es })}
+            </p>
+            <p>
+              Termina:{" "}
+              {format(planRange.endDate, "d MMMM yyyy", { locale: es })}
+            </p>
+            <p>
+              Duración: {planRange.durationDays}{" "}
+              {planRange.durationDays === 1 ? "día" : "días"}
+              {pending ? " · guardando…" : ""}
+            </p>
+          </div>
         </div>
       </div>
 
-      <DelayBanner
-        active={simActive}
-        scenarioName={scenario?.name}
-        exceedsEventDate={exceeds}
-        baseDuration={baseDuration}
-        simDuration={simDuration}
-        onToggle={setSimActive}
-        scenarios={scenarios}
-        selectedId={scenarioId}
-        onSelectScenario={setScenarioId}
-        onApply={() => {
-          if (!scenario) return;
-          startTransition(async () => {
-            await applyScenarioPatches(projectId, patches);
-            setSimActive(false);
-          });
-        }}
-      />
-
-      {simActive && scenario?.description && (
-        <p className="text-sm text-amber-900/80">{scenario.description}</p>
-      )}
-
       <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
-        <div className="space-y-6">
+        <div className="min-w-0">
           <TaskFlow
             projectId={projectId}
-            tasks={tasks.map((t) => ({
-              ...t,
-              isCritical:
-                simulation.result.byId[t.id]?.critical ?? t.isCritical,
-            }))}
+            tasks={tasks}
             edges={edges}
-            onSelectTask={setSelectedId}
-          />
-          <TaskGantt
-            tasks={simTasks}
-            eventDate={eventDate}
-            simulation={simActive}
-            onSelectTask={setSelectedId}
+            onSelectTask={(id) => {
+              setSelectedId(id);
+              setConnectorSelected(false);
+            }}
+            onSelectConnector={(selected) => {
+              setConnectorSelected(selected);
+              if (selected) {
+                setSelectedId(null);
+                setNewTaskOpen(false);
+              }
+            }}
           />
         </div>
 
         <aside className="space-y-4">
-          <div className="rounded-2xl border border-border bg-panel p-4 shadow-sm">
-            <h2 className="mb-3 font-semibold">Nueva tarea</h2>
-            <form
-              action={(fd) => {
-                startTransition(async () => {
-                  await createTask(projectId, fd);
-                });
-              }}
-              className="space-y-2"
+          <div className="rounded-2xl border border-border bg-panel shadow-sm">
+            <button
+              type="button"
+              aria-expanded={newTaskOpen}
+              onClick={() => setNewTaskOpen((open) => !open)}
+              className="flex w-full items-center justify-between px-4 py-3 text-left font-semibold"
             >
-              <input
-                name="title"
-                required
-                placeholder="Título"
-                className="w-full rounded-lg border border-border px-3 py-2 text-sm"
-              />
-              <input
-                name="durationDays"
-                type="number"
-                min={1}
-                defaultValue={1}
-                className="w-full rounded-lg border border-border px-3 py-2 text-sm"
-              />
-              <button
-                type="submit"
-                className="w-full rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-dark"
+              Nueva tarea
+              <span
+                aria-hidden
+                className={`text-muted transition-transform ${newTaskOpen ? "rotate-180" : ""}`}
               >
-                Añadir
-              </button>
-            </form>
+                ▾
+              </span>
+            </button>
+            {newTaskOpen && (
+              <form
+                action={(fd) => {
+                  startTransition(async () => {
+                    await createTask(projectId, fd);
+                  });
+                }}
+                className="space-y-2 border-t border-border px-4 py-3"
+              >
+                <input
+                  name="title"
+                  required
+                  placeholder="Título"
+                  className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+                />
+                <input
+                  name="durationDays"
+                  type="number"
+                  min={1}
+                  required
+                  placeholder="Días de duración"
+                  className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+                />
+                <button
+                  type="submit"
+                  className="w-full rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-dark"
+                >
+                  Añadir
+                </button>
+              </form>
+            )}
           </div>
 
           <div className="rounded-2xl border border-border bg-panel p-4 shadow-sm">
-            <h2 className="mb-3 font-semibold">Detalle</h2>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="font-semibold">Detalle</h2>
+              {selected && (
+                <button
+                  type="button"
+                  className="rounded-lg border border-border px-2.5 py-1 text-xs text-red-600 hover:bg-red-50"
+                  onClick={() =>
+                    startTransition(async () => {
+                      await deleteTask(selected.id);
+                      setSelectedId(null);
+                    })
+                  }
+                >
+                  Eliminar tarea
+                </button>
+              )}
+            </div>
             {!selected ? (
               <p className="text-sm text-muted">Selecciona una tarea</p>
             ) : (
@@ -255,11 +213,11 @@ export function ProjectEditor({
                 </p>
                 {selected.earliestStart && selected.earliestFinish && (
                   <p className="text-muted">
-                    {format(new Date(selected.earliestStart), "d MMM", {
+                    {format(calendarDate(selected.earliestStart), "d MMM", {
                       locale: es,
                     })}{" "}
                     →{" "}
-                    {format(new Date(selected.earliestFinish), "d MMM", {
+                    {format(calendarDate(selected.earliestFinish), "d MMM", {
                       locale: es,
                     })}
                   </p>
@@ -302,22 +260,21 @@ export function ProjectEditor({
                       })}
                   </ul>
                 </div>
-                <button
-                  type="button"
-                  className="text-sm text-red-600 hover:underline"
-                  onClick={() =>
-                    startTransition(async () => {
-                      await deleteTask(selected.id);
-                      setSelectedId(null);
-                    })
-                  }
-                >
-                  Eliminar tarea
-                </button>
               </div>
             )}
           </div>
         </aside>
+
+        <div className="min-w-0 lg:col-span-2">
+          <TaskGantt
+            tasks={tasks}
+            eventDate={eventDate}
+            onSelectTask={(id) => {
+              setSelectedId(id);
+              setConnectorSelected(false);
+            }}
+          />
+        </div>
       </div>
     </div>
   );

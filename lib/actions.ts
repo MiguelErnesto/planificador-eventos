@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "./prisma";
 import { recalculateProject } from "./project-cpm";
 import { validateDag, CpmError } from "./cpm";
-import { z } from "zod";
 
 function revalidateProject(projectId: string) {
   revalidatePath("/");
@@ -21,7 +20,7 @@ export async function createProject(formData: FormData) {
   const project = await prisma.project.create({
     data: {
       name,
-      eventDate: new Date(eventDateRaw),
+      eventDate: new Date(`${eventDateRaw}T00:00:00.000Z`),
     },
   });
   revalidatePath("/");
@@ -144,30 +143,4 @@ export async function deleteDependency(dependencyId: string) {
   await prisma.dependency.delete({ where: { id: dependencyId } });
   await recalculateProject(edge.projectId);
   revalidateProject(edge.projectId);
-}
-
-const applySchema = z.object({
-  patches: z.array(
-    z.object({
-      taskId: z.string(),
-      extraDays: z.number().int(),
-    }),
-  ),
-});
-
-export async function applyScenarioPatches(
-  projectId: string,
-  patches: { taskId: string; extraDays: number }[],
-) {
-  const parsed = applySchema.parse({ patches });
-  await prisma.$transaction(
-    parsed.patches.map((p) =>
-      prisma.task.update({
-        where: { id: p.taskId },
-        data: { durationDays: { increment: p.extraDays } },
-      }),
-    ),
-  );
-  await recalculateProject(projectId);
-  revalidateProject(projectId);
 }

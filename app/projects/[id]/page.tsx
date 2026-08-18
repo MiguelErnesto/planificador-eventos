@@ -37,7 +37,6 @@ export default async function ProjectPage({ params }: Props) {
       projectName={project.name}
       eventDate={project.eventDate.toISOString()}
       baseDuration={cpm.projectDuration}
-      eventDayRelative={eventDay}
       tasks={project.tasks.map((t) => ({
         id: t.id,
         title: t.title,
@@ -57,12 +56,6 @@ export default async function ProjectPage({ params }: Props) {
         fromTaskId: e.fromTaskId,
         toTaskId: e.toTaskId,
         lagDays: e.lagDays,
-      }))}
-      scenarios={project.scenarios.map((s) => ({
-        id: s.id,
-        name: s.name,
-        description: s.description,
-        patches: s.patches,
       }))}
     />
   );

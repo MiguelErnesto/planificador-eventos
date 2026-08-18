@@ -1,9 +1,11 @@
 import { PrismaClient } from "@prisma/client";
 import { spawn } from "node:child_process";
+import { upsertSiteSettings } from "../lib/branding";
 
 const prisma = new PrismaClient();
 
 async function main() {
+  await upsertSiteSettings(prisma);
   const n = await prisma.project.count();
   await prisma.$disconnect();
 
