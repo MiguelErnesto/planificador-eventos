@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { todayUtcInTimeZone } from "../lib/dates";
 import { recalculateProject } from "../lib/project-cpm";
 import { upsertSiteSettings } from "../lib/branding";
@@ -8,7 +8,6 @@ const prisma = new PrismaClient();
 async function main() {
   await upsertSiteSettings(prisma);
   await prisma.dependency.deleteMany();
-  await prisma.delayScenario.deleteMany();
   await prisma.task.deleteMany();
   await prisma.project.deleteMany();
 
@@ -88,19 +87,6 @@ async function main() {
       },
     });
   }
-
-  await prisma.delayScenario.create({
-    data: {
-      projectId: project.id,
-      name: "¿Qué pasa si llueve?",
-      description:
-        "Retraso en montaje outdoor: escenario y flores necesitan más días.",
-      patches: [
-        { taskId: created.stage, extraDays: 2 },
-        { taskId: created.flowers, extraDays: 1 },
-      ] satisfies Prisma.InputJsonValue,
-    },
-  });
 
   await recalculateProject(project.id);
   console.log(`Seed OK — proyecto ${project.id} (${project.name})`);

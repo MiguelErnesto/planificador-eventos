@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runCpm, simulate, validateDag, CpmError } from "./index";
+import { runCpm, validateDag, CpmError } from "./index";
 
 describe("CPM", () => {
   const tasks = [
@@ -44,16 +44,6 @@ describe("CPM", () => {
     expect(() =>
       validateDag(tasks, [...edges, { from: "E", to: "A" }]),
     ).toThrow(CpmError);
-  });
-
-  it("simulates delay on Montar escenario pushing successors", () => {
-    const base = runCpm(tasks, edges);
-    const delayed = simulate(tasks, edges, [{ taskId: "C", extraDays: 2 }]);
-
-    expect(delayed.byId.C.EF).toBe(base.byId.C.EF + 2);
-    expect(delayed.byId.D.ES).toBe(base.byId.D.ES + 2);
-    expect(delayed.byId.E.ES).toBe(base.byId.E.ES + 2);
-    expect(delayed.projectDuration).toBe(11);
   });
 
   it("respects fixedStart", () => {

@@ -4,36 +4,14 @@ import { useMemo, useState, useTransition } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { TaskFlow, type FlowTask, type FlowEdge } from "@/components/graph/TaskFlow";
-import { TaskGantt, type GanttTask } from "@/components/gantt/TaskGantt";
-import { DelayBanner } from "@/components/simulation/DelayBanner";
+import { TaskGantt } from "@/components/gantt/TaskGantt";
 import {
-  applyScenarioPatches,
   createTask,
   deleteDependency,
   deleteTask,
   updateTask,
 } from "@/lib/actions";
-import {
-  runCpm,
-  simulate,
-  type CpmEdge,
-  type CpmTask,
-  type DelayPatch,
-} from "@/lib/cpm";
-import {
-  defaultPlanningAnchor,
-  toAbsoluteDate,
-  toRelativeDays,
-  calendarDate,
-  addCalendarDays,
-} from "@/lib/dates";
-
-type Scenario = {
-  id: string;
-  name: string;
-  description: string | null;
-  patches: unknown;
-};
+import { calendarDate, addCalendarDays } from "@/lib/dates";
 
 type Task = FlowTask & {
   earliestStart: Date | string | null;
@@ -51,105 +29,32 @@ export function ProjectEditor({
   eventDate,
   tasks,
   edges,
-  scenarios,
   baseDuration,
-  eventDayRelative,
 }: {
   projectId: string;
   projectName: string;
   eventDate: string;
   tasks: Task[];
   edges: Edge[];
-  scenarios: Scenario[];
   baseDuration: number;
-  eventDayRelative: number;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [connectorSelected, setConnectorSelected] = useState(false);
   const [newTaskOpen, setNewTaskOpen] = useState(false);
-  const [simActive, setSimActive] = useState(false);
-  const [scenarioId, setScenarioId] = useState(scenarios[0]?.id ?? null);
   const [pending, startTransition] = useTransition();
 
   const selected = connectorSelected
     ? null
     : (tasks.find((t) => t.id === selectedId) ?? null);
-  const scenario = scenarios.find((s) => s.id === scenarioId) ?? null;
-  const patches = (Array.isArray(scenario?.patches)
-    ? scenario!.patches
-    : []) as DelayPatch[];
-
-  const extraByTask = useMemo(
-    () => new Map(patches.map((p) => [p.taskId, p.extraDays])),
-    [patches],
-  );
-
-  const simulation = useMemo(() => {
-    const anchor = defaultPlanningAnchor(calendarDate(eventDate));
-    const cpmTasks: CpmTask[] = tasks.map((t) => ({
-      id: t.id,
-      duration: t.durationDays,
-      fixedStart:
-        t.fixedStart != null
-          ? toRelativeDays(calendarDate(t.fixedStart), anchor)
-          : undefined,
-    }));
-    const cpmEdges: CpmEdge[] = edges.map((e) => ({
-      from: e.fromTaskId,
-      to: e.toTaskId,
-      lag: e.lagDays,
-    }));
-    const preliminary = runCpm(cpmTasks, cpmEdges);
-    const horizon = Math.max(preliminary.projectDuration, eventDayRelative);
-    const result =
-      simActive && patches.length > 0
-        ? simulate(cpmTasks, cpmEdges, patches, { horizon })
-        : runCpm(cpmTasks, cpmEdges, { horizon });
-    return { result, anchor };
-  }, [tasks, edges, eventDate, eventDayRelative, simActive, patches]);
-
-  const simTasks: GanttTask[] = useMemo(() => {
-    const { result, anchor } = simulation;
-    return tasks.map((t) => {
-      const r = result.byId[t.id];
-      const bump = extraByTask.get(t.id) ?? 0;
-      return {
-        id: t.id,
-        title: t.title,
-        durationDays: t.durationDays + (simActive ? bump : 0),
-        earliestStart: t.earliestStart,
-        earliestFinish: t.earliestFinish,
-        isCritical: r?.critical ?? t.isCritical,
-        simulatedStart:
-          simActive && r ? toAbsoluteDate(r.ES, anchor) : undefined,
-        simulatedFinish:
-          simActive && r ? toAbsoluteDate(r.EF, anchor) : undefined,
-      };
-    });
-  }, [tasks, simulation, simActive, extraByTask]);
-
-  const simDuration = simActive
-    ? simulation.result.projectDuration
-    : baseDuration;
-
-  const exceeds = simActive && simDuration > eventDayRelative;
 
   const planRange = useMemo(() => {
-    const durationDays = simDuration;
-    const startDates = simTasks
-      .flatMap((t) =>
-        simActive
-          ? [t.simulatedStart ?? t.earliestStart]
-          : [t.earliestStart],
-      )
+    const durationDays = baseDuration;
+    const startDates = tasks
+      .map((t) => t.earliestStart)
       .filter(Boolean)
       .map((d) => calendarDate(d as Date | string));
-    const endDates = simTasks
-      .flatMap((t) =>
-        simActive
-          ? [t.simulatedFinish ?? t.earliestFinish]
-          : [t.earliestFinish],
-      )
+    const endDates = tasks
+      .map((t) => t.earliestFinish)
       .filter(Boolean)
       .map((d) => calendarDate(d as Date | string));
 
@@ -161,7 +66,7 @@ export function ProjectEditor({
       : addCalendarDays(startDate, Math.max(durationDays, 0));
 
     return { startDate, endDate, durationDays };
-  }, [simTasks, simActive, simDuration, eventDate]);
+  }, [tasks, baseDuration, eventDate]);
 
   return (
     <div className="space-y-6">
@@ -191,38 +96,11 @@ export function ProjectEditor({
         </div>
       </div>
 
-      <DelayBanner
-        active={simActive}
-        scenarioName={scenario?.name}
-        exceedsEventDate={exceeds}
-        baseDuration={baseDuration}
-        simDuration={simDuration}
-        onToggle={setSimActive}
-        scenarios={scenarios}
-        selectedId={scenarioId}
-        onSelectScenario={setScenarioId}
-        onApply={() => {
-          if (!scenario) return;
-          startTransition(async () => {
-            await applyScenarioPatches(projectId, patches);
-            setSimActive(false);
-          });
-        }}
-      />
-
-      {simActive && scenario?.description && (
-        <p className="text-sm text-amber-900/80">{scenario.description}</p>
-      )}
-
       <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
         <div className="min-w-0">
           <TaskFlow
             projectId={projectId}
-            tasks={tasks.map((t) => ({
-              ...t,
-              isCritical:
-                simulation.result.byId[t.id]?.critical ?? t.isCritical,
-            }))}
+            tasks={tasks}
             edges={edges}
             onSelectTask={(id) => {
               setSelectedId(id);
@@ -389,9 +267,8 @@ export function ProjectEditor({
 
         <div className="min-w-0 lg:col-span-2">
           <TaskGantt
-            tasks={simTasks}
+            tasks={tasks}
             eventDate={eventDate}
-            simulation={simActive}
             onSelectTask={(id) => {
               setSelectedId(id);
               setConnectorSelected(false);

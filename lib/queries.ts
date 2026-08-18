@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { APP_TAGLINE, APP_TITLE } from "@/lib/branding";
-import { simulate, runCpm, CpmEdge, CpmTask, DelayPatch } from "@/lib/cpm";
-import { calendarDate, defaultPlanningAnchor, toRelativeDays } from "@/lib/dates";
+import { calendarDate } from "@/lib/dates";
 
 export async function getSiteSettings() {
   try {
@@ -23,7 +22,6 @@ export async function getProjectBundle(projectId: string) {
     include: {
       tasks: { orderBy: { title: "asc" } },
       edges: true,
-      scenarios: { orderBy: { name: "asc" } },
     },
   });
 }
@@ -67,38 +65,4 @@ export async function listProjects() {
       durationDays,
     };
   });
-}
-
-export function runProjectSimulation(
-  project: ProjectBundle,
-  patches: DelayPatch[],
-) {
-  const anchor = defaultPlanningAnchor(project.eventDate);
-  const eventDay = toRelativeDays(project.eventDate, anchor);
-
-  const tasks: CpmTask[] = project.tasks.map((t) => ({
-    id: t.id,
-    duration: t.durationDays,
-    fixedStart:
-      t.fixedStart != null ? toRelativeDays(t.fixedStart, anchor) : undefined,
-  }));
-
-  const edges: CpmEdge[] = project.edges.map((e) => ({
-    from: e.fromTaskId,
-    to: e.toTaskId,
-    lag: e.lagDays,
-  }));
-
-  const preliminary = runCpm(tasks, edges);
-  const horizon = Math.max(preliminary.projectDuration, eventDay);
-  const base = runCpm(tasks, edges, { horizon });
-  const sim = simulate(tasks, edges, patches, { horizon });
-
-  return {
-    base,
-    sim,
-    anchor,
-    eventDay,
-    exceedsEventDate: sim.projectDuration > eventDay,
-  };
 }

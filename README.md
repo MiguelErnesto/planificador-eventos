@@ -15,7 +15,7 @@ El IDE edita los archivos en esta carpeta; el runtime corre en Docker gracias al
 docker compose up --build
 ```
 
-Abre [http://localhost:3000](http://localhost:3000). El primer arranque instala dependencias, aplica migraciones y, si la base está vacía, crea el proyecto **Boda Ana & Luis** con el escenario «¿Qué pasa si llueve?».
+Abre [http://localhost:3000](http://localhost:3000). El primer arranque instala dependencias, aplica migraciones y, si la base está vacía, crea el proyecto **Boda Ana & Luis**.
 
 Para parar:
 

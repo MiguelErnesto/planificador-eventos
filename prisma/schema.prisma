@@ -16,7 +16,6 @@ model Project {
   updatedAt  DateTime        @updatedAt
   tasks      Task[]
   edges      Dependency[]
-  scenarios  DelayScenario[]
 }
 
 model Task {
@@ -54,19 +53,6 @@ model Dependency {
   createdAt  DateTime @default(now())
 
   @@unique([fromTaskId, toTaskId])
-  @@index([projectId])
-}
-
-model DelayScenario {
-  id          String   @id @default(cuid())
-  projectId   String
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  name        String
-  description String?
-  patches     Json
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
   @@index([projectId])
 }
 

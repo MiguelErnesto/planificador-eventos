@@ -15,8 +15,6 @@ export type GanttTask = {
   earliestStart: Date | string | null;
   earliestFinish: Date | string | null;
   isCritical: boolean;
-  simulatedStart?: Date | null;
-  simulatedFinish?: Date | null;
 };
 
 const DAY_PX = 28;
@@ -68,12 +66,10 @@ function UnlockIcon() {
 export function TaskGantt({
   tasks,
   eventDate,
-  simulation = false,
   onSelectTask,
 }: {
   tasks: GanttTask[];
   eventDate: Date | string;
-  simulation?: boolean;
   onSelectTask: (id: string) => void;
 }) {
   const event = calendarDate(eventDate);
@@ -86,16 +82,10 @@ export function TaskGantt({
 
   const { minDay, maxDay, rows } = useMemo(() => {
     const starts = tasks
-      .flatMap((t) => [
-        t.earliestStart ? calendarDate(t.earliestStart) : null,
-        t.simulatedStart ? calendarDate(t.simulatedStart) : null,
-      ])
+      .map((t) => (t.earliestStart ? calendarDate(t.earliestStart) : null))
       .filter(Boolean) as Date[];
     const finishes = tasks
-      .flatMap((t) => [
-        t.earliestFinish ? calendarDate(t.earliestFinish) : null,
-        t.simulatedFinish ? calendarDate(t.simulatedFinish) : null,
-      ])
+      .map((t) => (t.earliestFinish ? calendarDate(t.earliestFinish) : null))
       .filter(Boolean) as Date[];
 
     if (starts.length === 0) {
@@ -111,7 +101,7 @@ export function TaskGantt({
   const totalDays = Math.max(1, differenceInCalendarDays(maxDay, minDay) + 2);
   const eventOffset = differenceInCalendarDays(event, minDay);
   const dayPx = DAY_PX * zoom;
-  const interactive = !locked && !simulation;
+  const interactive = !locked;
 
   const days = useMemo(
     () => Array.from({ length: totalDays }, (_, i) => addCalendarDays(minDay, i)),
@@ -260,23 +250,6 @@ export function TaskGantt({
             const left = differenceInCalendarDays(start, minDay) * dayPx;
             const width = Math.max(task.durationDays, 1) * dayPx;
 
-            const simStart = task.simulatedStart
-              ? calendarDate(task.simulatedStart)
-              : null;
-            const simLeft = simStart
-              ? differenceInCalendarDays(simStart, minDay) * dayPx
-              : null;
-            const simWidth =
-              task.simulatedFinish && simStart
-                ? Math.max(
-                    differenceInCalendarDays(
-                      calendarDate(task.simulatedFinish),
-                      simStart,
-                    ),
-                    1,
-                  ) * dayPx
-                : null;
-
             return (
               <div
                 key={task.id}
@@ -301,12 +274,6 @@ export function TaskGantt({
                     style={{ left: eventOffset * dayPx }}
                     title="Fecha del evento"
                   />
-                  {simulation && simLeft != null && simWidth != null && (
-                    <div
-                      className="absolute top-1 h-7 rounded-md border border-amber-400 bg-amber-200/70"
-                      style={{ left: simLeft, width: simWidth }}
-                    />
-                  )}
                   <div
                     role="slider"
                     aria-label={`Mover ${task.title}`}
