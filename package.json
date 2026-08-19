@@ -12,6 +12,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force",
+    "db:studio": "prisma studio --hostname 0.0.0.0 --port 5555",
     "postinstall": "prisma generate"
   },
   "engines": {
