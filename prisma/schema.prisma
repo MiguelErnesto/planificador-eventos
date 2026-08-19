@@ -7,6 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum DependencyType {
+  FS
+  SS
+  FF
+}
+
 model Project {
   id         String          @id @default(cuid())
   name       String
@@ -30,6 +36,7 @@ model Task {
   latestFinish   DateTime?
   slackDays      Float     @default(0)
   isCritical     Boolean   @default(false)
+  progressPct    Int       @default(0)
   fixedStart     DateTime?
   positionX      Float     @default(0)
   positionY      Float     @default(0)
@@ -49,8 +56,9 @@ model Dependency {
   toTaskId   String
   fromTask   Task    @relation("from", fields: [fromTaskId], references: [id], onDelete: Cascade)
   toTask     Task    @relation("to", fields: [toTaskId], references: [id], onDelete: Cascade)
-  lagDays    Int     @default(0)
-  createdAt  DateTime @default(now())
+  lagDays    Int             @default(0)
+  type       DependencyType  @default(FS)
+  createdAt  DateTime        @default(now())
 
   @@unique([fromTaskId, toTaskId])
   @@index([projectId])

@@ -15,6 +15,7 @@ export type GanttTask = {
   earliestStart: Date | string | null;
   earliestFinish: Date | string | null;
   isCritical: boolean;
+  progressPct: number;
 };
 
 const DAY_PX = 28;
@@ -297,7 +298,7 @@ export function TaskGantt({
                       window.addEventListener("mousemove", onMove);
                       window.addEventListener("mouseup", onUp);
                     }}
-                    className={`absolute top-1 h-7 rounded-md text-[10px] leading-7 text-white ${
+                    className={`absolute top-1 h-7 overflow-hidden rounded-md text-[10px] leading-7 text-white ${
                       interactive
                         ? "cursor-grab active:cursor-grabbing"
                         : "cursor-default"
@@ -306,7 +307,13 @@ export function TaskGantt({
                     } ${dragging === task.id ? "opacity-80" : ""}`}
                     style={{ left, width }}
                   >
-                    <span className="px-2">{task.durationDays}d</span>
+                    <div
+                      className="absolute inset-y-0 left-0 bg-white/35"
+                      style={{ width: `${Math.min(100, Math.max(0, task.progressPct))}%` }}
+                    />
+                    <span className="relative px-2">
+                      {task.durationDays}d · {task.progressPct}%
+                    </span>
                   </div>
                 </div>
               </div>

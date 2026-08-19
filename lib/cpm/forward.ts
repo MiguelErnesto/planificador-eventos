@@ -7,6 +7,28 @@ export type ForwardResult = {
   projectDuration: number;
 };
 
+function lagOf(e: CpmEdge) {
+  return e.lag ?? 0;
+}
+
+function forwardESFromEdge(
+  e: CpmEdge,
+  ES: Record<string, number>,
+  EF: Record<string, number>,
+  durationTo: number,
+): number {
+  const lag = lagOf(e);
+  switch (e.type ?? "FS") {
+    case "SS":
+      return (ES[e.from] ?? 0) + lag;
+    case "FF":
+      return (EF[e.from] ?? 0) + lag - durationTo;
+    case "FS":
+    default:
+      return (EF[e.from] ?? 0) + lag;
+  }
+}
+
 export function forwardPass(tasks: CpmTask[], edges: CpmEdge[]): ForwardResult {
   const byId = new Map(tasks.map((t) => [t.id, t]));
   const preds = new Map<string, CpmEdge[]>();
@@ -23,7 +45,7 @@ export function forwardPass(tasks: CpmTask[], edges: CpmEdge[]): ForwardResult {
     let es = 0;
     if (incoming.length > 0) {
       es = Math.max(
-        ...incoming.map((e) => (EF[e.from] ?? 0) + (e.lag ?? 0)),
+        ...incoming.map((e) => forwardESFromEdge(e, ES, EF, task.duration)),
       );
     }
     if (task.fixedStart !== undefined) {

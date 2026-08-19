@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { TaskFlow, type FlowTask, type FlowEdge } from "@/components/graph/TaskFlow";
@@ -12,6 +12,7 @@ import {
   updateTask,
 } from "@/lib/actions";
 import { calendarDate, addCalendarDays } from "@/lib/dates";
+import { eventProgressPct } from "@/lib/progress";
 
 type Task = FlowTask & {
   earliestStart: Date | string | null;
@@ -22,6 +23,43 @@ type Task = FlowTask & {
 };
 
 type Edge = FlowEdge;
+
+function TaskProgressSlider({
+  taskId,
+  progressPct,
+  onCommit,
+}: {
+  taskId: string;
+  progressPct: number;
+  onCommit: (pct: number) => void;
+}) {
+  const [value, setValue] = useState(progressPct);
+  useEffect(() => {
+    setValue(progressPct);
+  }, [taskId, progressPct]);
+
+  function commit() {
+    if (value !== progressPct) onCommit(value);
+  }
+
+  return (
+    <label className="block space-y-1">
+      <span className="flex items-center justify-between">
+        Progreso <strong>{value}%</strong>
+      </span>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        value={value}
+        className="w-full accent-accent"
+        onChange={(e) => setValue(Number(e.target.value))}
+        onPointerUp={commit}
+        onKeyUp={commit}
+      />
+    </label>
+  );
+}
 
 export function ProjectEditor({
   projectId,
@@ -65,7 +103,12 @@ export function ProjectEditor({
       ? endDates.reduce((a, b) => (a > b ? a : b))
       : addCalendarDays(startDate, Math.max(durationDays, 0));
 
-    return { startDate, endDate, durationDays };
+    return {
+      startDate,
+      endDate,
+      durationDays,
+      progressPct: eventProgressPct(tasks),
+    };
   }, [tasks, baseDuration, eventDate]);
 
   return (
@@ -92,6 +135,7 @@ export function ProjectEditor({
               {planRange.durationDays === 1 ? "día" : "días"}
               {pending ? " · guardando…" : ""}
             </p>
+            <p>Progreso: {planRange.progressPct}%</p>
           </div>
         </div>
       </div>
@@ -205,6 +249,15 @@ export function ProjectEditor({
                   />{" "}
                   días
                 </p>
+                <TaskProgressSlider
+                  taskId={selected.id}
+                  progressPct={selected.progressPct}
+                  onCommit={(pct) =>
+                    startTransition(() =>
+                      updateTask(selected.id, { progressPct: pct }),
+                    )
+                  }
+                />
                 <p>
                   Holgura: <strong>{selected.slackDays.toFixed(1)}d</strong>
                   {selected.isCritical && (
@@ -234,7 +287,10 @@ export function ProjectEditor({
                             key={e.id}
                             className="flex items-center justify-between gap-2"
                           >
-                            <span>{from?.title ?? e.fromTaskId}</span>
+                            <span>
+                              {from?.title ?? e.fromTaskId}{" "}
+                              <span className="text-muted">{e.type}</span>
+                            </span>
                             <button
                               type="button"
                               className="text-xs text-red-600"
@@ -256,7 +312,12 @@ export function ProjectEditor({
                       .filter((e) => e.fromTaskId === selected.id)
                       .map((e) => {
                         const to = tasks.find((t) => t.id === e.toTaskId);
-                        return <li key={e.id}>{to?.title ?? e.toTaskId}</li>;
+                        return (
+                          <li key={e.id}>
+                            {to?.title ?? e.toTaskId}{" "}
+                            <span className="text-muted">{e.type}</span>
+                          </li>
+                        );
                       })}
                   </ul>
                 </div>

@@ -6,6 +6,30 @@ export type BackwardResult = {
   LF: Record<string, number>;
 };
 
+function lagOf(e: CpmEdge) {
+  return e.lag ?? 0;
+}
+
+function backwardLFFromEdge(
+  e: CpmEdge,
+  LS: Record<string, number>,
+  durationFrom: number,
+  durationTo: number,
+  horizon: number,
+): number {
+  const lag = lagOf(e);
+  const lsTo = LS[e.to] ?? horizon;
+  switch (e.type ?? "FS") {
+    case "SS":
+      return lsTo - lag + durationFrom;
+    case "FF":
+      return lsTo + durationTo - lag;
+    case "FS":
+    default:
+      return lsTo - lag;
+  }
+}
+
 export function backwardPass(
   tasks: CpmTask[],
   edges: CpmEdge[],
@@ -27,14 +51,22 @@ export function backwardPass(
     let lf = horizon;
     if (outgoing.length > 0) {
       lf = Math.min(
-        ...outgoing.map((e) => (LS[e.to] ?? horizon) - (e.lag ?? 0)),
+        ...outgoing.map((e) => {
+          const succ = byId.get(e.to);
+          return backwardLFFromEdge(
+            e,
+            LS,
+            task.duration,
+            succ?.duration ?? 0,
+            horizon,
+          );
+        }),
       );
     }
     LF[id] = lf;
     LS[id] = lf - task.duration;
   }
 
-  // silence unused if EF not needed for logic; kept for API symmetry / future checks
   void EF;
 
   return { LS, LF };

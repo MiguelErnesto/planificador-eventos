@@ -4,6 +4,7 @@ import { formatCalendarDate } from "@/lib/dates";
 import { es } from "date-fns/locale";
 import { listProjects } from "@/lib/queries";
 import { NewProjectNameInput } from "@/components/NewProjectNameInput";
+import { createProject, deleteProject } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -75,12 +76,19 @@ export default async function ProjectsPage() {
             .
           </p>
         ) : (
-          <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-panel shadow-sm">
+          <ul className="overflow-hidden rounded-2xl border border-border bg-panel shadow-sm">
             {projects.map((p) => (
               <li
                 key={p.id}
-                className="relative flex flex-col gap-2 px-4 py-2 hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between"
+                className="relative flex flex-col gap-2 overflow-hidden border-b-[3px] border-double border-border px-4 py-2 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
               >
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-y-0 left-0 bg-accent/25"
+                  style={{
+                    width: `${Math.min(100, Math.max(0, p.progressPct))}%`,
+                  }}
+                />
                 <Link
                   href={`/projects/${p.id}`}
                   className="absolute inset-0 z-0"
@@ -98,7 +106,8 @@ export default async function ProjectsPage() {
                       locale: es,
                     })}{" "}
                     - Duración: {p.durationDays}{" "}
-                    {p.durationDays === 1 ? "día" : "días"} - {p.taskCount}{" "}
+                    {p.durationDays === 1 ? "día" : "días"} - Progreso Total:{" "}
+                    {p.progressPct}% - {p.taskCount}{" "}
                     {p.taskCount === 1 ? "tarea" : "tareas"}
                   </p>
                 </div>

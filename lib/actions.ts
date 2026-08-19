@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "./prisma";
 import { recalculateProject } from "./project-cpm";
-import { validateDag, CpmError } from "./cpm";
+import { validateDag, CpmError, type DependencyType } from "./cpm";
 
 function revalidateProject(projectId: string) {
   revalidatePath("/");
@@ -62,9 +62,14 @@ export async function updateTask(
     fixedStart?: string | null;
     positionX?: number;
     positionY?: number;
+    progressPct?: number;
   },
 ) {
   const existing = await prisma.task.findUniqueOrThrow({ where: { id: taskId } });
+  const progressPct =
+    data.progressPct === undefined
+      ? undefined
+      : Math.min(100, Math.max(0, Math.round(data.progressPct)));
   await prisma.task.update({
     where: { id: taskId },
     data: {
@@ -78,6 +83,7 @@ export async function updateTask(
             : null,
       positionX: data.positionX ?? undefined,
       positionY: data.positionY ?? undefined,
+      progressPct,
     },
   });
   if (
@@ -102,6 +108,7 @@ export async function createDependency(
   fromTaskId: string,
   toTaskId: string,
   lagDays = 0,
+  type: DependencyType = "FS",
 ) {
   if (fromTaskId === toTaskId) {
     throw new Error("Una tarea no puede depender de sí misma");
@@ -118,8 +125,9 @@ export async function createDependency(
       from: e.fromTaskId,
       to: e.toTaskId,
       lag: e.lagDays,
+      type: e.type,
     })),
-    { from: fromTaskId, to: toTaskId, lag: lagDays },
+    { from: fromTaskId, to: toTaskId, lag: lagDays, type },
   ];
 
   try {
@@ -130,7 +138,7 @@ export async function createDependency(
   }
 
   await prisma.dependency.create({
-    data: { projectId, fromTaskId, toTaskId, lagDays },
+    data: { projectId, fromTaskId, toTaskId, lagDays, type },
   });
   await recalculateProject(projectId);
   revalidateProject(projectId);

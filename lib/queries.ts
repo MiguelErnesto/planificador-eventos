@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { APP_TAGLINE, APP_TITLE } from "@/lib/branding";
 import { calendarDate } from "@/lib/dates";
+import { eventProgressPct } from "@/lib/progress";
 
 export async function getSiteSettings() {
   try {
@@ -31,7 +32,7 @@ export async function listProjects() {
     orderBy: { createdAt: "desc" },
     include: {
       _count: { select: { tasks: true } },
-      tasks: { select: { earliestStart: true, earliestFinish: true } },
+      tasks: { select: { earliestStart: true, earliestFinish: true, progressPct: true, durationDays: true } },
     },
   });
 
@@ -63,6 +64,7 @@ export async function listProjects() {
       startsAt,
       endsAt,
       durationDays,
+      progressPct: eventProgressPct(p.tasks),
     };
   });
 }
