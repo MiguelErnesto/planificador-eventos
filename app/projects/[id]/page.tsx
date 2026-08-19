@@ -25,6 +25,7 @@ export default async function ProjectPage({ params }: Props) {
     from: e.fromTaskId,
     to: e.toTaskId,
     lag: e.lagDays,
+    type: e.type,
   }));
   const preliminary = runCpm(tasks, edges);
   const cpm = runCpm(tasks, edges, {
@@ -50,12 +51,14 @@ export default async function ProjectPage({ params }: Props) {
         latestStart: t.latestStart?.toISOString() ?? null,
         latestFinish: t.latestFinish?.toISOString() ?? null,
         fixedStart: t.fixedStart?.toISOString() ?? null,
+        progressPct: t.progressPct,
       }))}
       edges={project.edges.map((e) => ({
         id: e.id,
         fromTaskId: e.fromTaskId,
         toTaskId: e.toTaskId,
         lagDays: e.lagDays,
+        type: e.type,
       }))}
     />
   );

@@ -68,4 +68,43 @@ describe("CPM", () => {
     );
     expect(result.byId.Y.ES).toBe(5);
   });
+
+  it("SS: successor starts with predecessor", () => {
+    const result = runCpm(
+      [
+        { id: "A", duration: 5 },
+        { id: "B", duration: 3 },
+      ],
+      [{ from: "A", to: "B", type: "SS" }],
+    );
+    expect(result.byId.A.ES).toBe(0);
+    expect(result.byId.B.ES).toBe(0);
+    expect(result.byId.A.EF).toBe(5);
+    expect(result.byId.B.EF).toBe(3);
+  });
+
+  it("FF: successor finishes with predecessor", () => {
+    const result = runCpm(
+      [
+        { id: "A", duration: 5 },
+        { id: "B", duration: 3 },
+      ],
+      [{ from: "A", to: "B", type: "FF" }],
+    );
+    expect(result.byId.A.EF).toBe(5);
+    expect(result.byId.B.EF).toBe(5);
+    expect(result.byId.B.ES).toBe(2);
+  });
+
+  it("SS with lag delays successor start", () => {
+    const result = runCpm(
+      [
+        { id: "A", duration: 4 },
+        { id: "B", duration: 2 },
+      ],
+      [{ from: "A", to: "B", type: "SS", lag: 2 }],
+    );
+    expect(result.byId.B.ES).toBe(2);
+    expect(result.byId.B.EF).toBe(4);
+  });
 });

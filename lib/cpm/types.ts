@@ -1,3 +1,5 @@
+export type DependencyType = "FS" | "SS" | "FF";
+
 export type CpmTask = {
   id: string;
   duration: number;
@@ -9,6 +11,7 @@ export type CpmEdge = {
   from: string;
   to: string;
   lag?: number;
+  type?: DependencyType;
 };
 
 export type CpmTaskResult = {

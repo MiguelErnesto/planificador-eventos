@@ -24,6 +24,12 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { createDependency, deleteDependency, updateTask } from "@/lib/actions";
+import {
+  dependencyLabel,
+  dependencyTypeFromHandles,
+  handlesForType,
+} from "@/lib/dependency";
+import type { DependencyType } from "@/lib/cpm";
 
 export type FlowTask = {
   id: string;
@@ -31,6 +37,7 @@ export type FlowTask = {
   durationDays: number;
   isCritical: boolean;
   slackDays: number;
+  progressPct: number;
   positionX: number;
   positionY: number;
 };
@@ -40,27 +47,68 @@ export type FlowEdge = {
   fromTaskId: string;
   toTaskId: string;
   lagDays: number;
+  type: DependencyType;
 };
 
 function TaskNode({ data }: NodeProps) {
   const d = data as FlowTask;
+  const fill = Math.min(100, Math.max(0, d.progressPct));
   return (
-    <div
-      className={`min-w-[160px] rounded-xl border-2 bg-white px-3 py-2 shadow-sm ${
-        d.isCritical ? "border-critical" : "border-slate-200"
-      }`}
-    >
-      <Handle type="target" position={Position.Left} className="!bg-accent" />
-      <p className="text-sm font-semibold text-slate-800">{d.title}</p>
-      <p className="text-xs text-muted">
-        {d.durationDays}d · holgura {d.slackDays.toFixed(0)}d
-      </p>
-      {d.isCritical && (
-        <span className="mt-1 inline-block rounded bg-red-50 px-1.5 text-[10px] font-medium uppercase tracking-wide text-critical">
-          Crítico
-        </span>
-      )}
-      <Handle type="source" position={Position.Right} className="!bg-accent" />
+    <div className="relative min-w-[160px]">
+      <Handle
+        type="target"
+        id="target-start"
+        position={Position.Left}
+        title="Inicio (destino)"
+        className="!bg-accent"
+        style={{ top: "35%" }}
+      />
+      <Handle
+        type="source"
+        id="source-start"
+        position={Position.Left}
+        title="Inicio (origen)"
+        className="!bg-accent"
+        style={{ top: "70%" }}
+      />
+      <div
+        className={`relative overflow-hidden rounded-xl border-2 bg-white px-3 py-2 shadow-sm ${
+          d.isCritical ? "border-critical" : "border-slate-200"
+        }`}
+      >
+        <div
+          aria-hidden
+          className={`pointer-events-none absolute inset-y-0 left-0 ${
+            d.isCritical ? "bg-critical/20" : "bg-accent/25"
+          }`}
+          style={{ width: `${fill}%` }}
+        />
+        <p className="relative text-sm font-semibold text-slate-800">{d.title}</p>
+        <p className="relative text-xs text-muted">
+          {d.durationDays}d · {d.progressPct}% · holgura {d.slackDays.toFixed(0)}d
+        </p>
+        {d.isCritical && (
+          <span className="relative mt-1 inline-block rounded bg-red-50 px-1.5 text-[10px] font-medium uppercase tracking-wide text-critical">
+            Crítico
+          </span>
+        )}
+      </div>
+      <Handle
+        type="source"
+        id="source-finish"
+        position={Position.Right}
+        title="Fin (origen)"
+        className="!bg-accent"
+        style={{ top: "35%" }}
+      />
+      <Handle
+        type="target"
+        id="target-finish"
+        position={Position.Right}
+        title="Fin (destino)"
+        className="!bg-accent"
+        style={{ top: "70%" }}
+      />
     </div>
   );
 }
@@ -120,11 +168,27 @@ function DependencyEdge({
       <BaseEdge
         id={id}
         path={edgePath}
-        label={label}
         markerEnd={selected ? `url(#${markerId})` : markerEnd}
         style={{ ...style, stroke: color, strokeWidth: selected ? 3 : 2 }}
         interactionWidth={interactionWidth ?? 24}
       />
+      {label && (
+        <EdgeLabelRenderer>
+          <div
+            className="nodrag nopan pointer-events-none"
+            style={{
+              position: "absolute",
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              zIndex: 1000,
+              pointerEvents: "none",
+            }}
+          >
+            <span className="rounded bg-white/90 px-1 text-[10px] font-semibold text-slate-600">
+              {label}
+            </span>
+          </div>
+        </EdgeLabelRenderer>
+      )}
       {selected && (
         <EdgeLabelRenderer>
           <div
@@ -182,16 +246,21 @@ export function TaskFlow({
 
   const initialEdges: Edge[] = useMemo(
     () =>
-      edges.map((e) => ({
-        id: e.id,
-        type: "dependency",
-        source: e.fromTaskId,
-        target: e.toTaskId,
-        label: e.lagDays ? `+${e.lagDays}d` : undefined,
-        markerEnd: { type: MarkerType.ArrowClosed, color: DEFAULT_EDGE },
-        style: { stroke: DEFAULT_EDGE, strokeWidth: 2 },
-        interactionWidth: 24,
-      })),
+      edges.map((e) => {
+        const handles = handlesForType(e.type);
+        return {
+          id: e.id,
+          type: "dependency",
+          source: e.fromTaskId,
+          target: e.toTaskId,
+          sourceHandle: handles.sourceHandle,
+          targetHandle: handles.targetHandle,
+          label: dependencyLabel(e.type, e.lagDays),
+          markerEnd: { type: MarkerType.ArrowClosed, color: DEFAULT_EDGE },
+          style: { stroke: DEFAULT_EDGE, strokeWidth: 2 },
+          interactionWidth: 24,
+        };
+      }),
     [edges],
   );
 
@@ -219,9 +288,23 @@ export function TaskFlow({
   const onConnect = useCallback(
     async (connection: Connection) => {
       if (!connection.source || !connection.target) return;
+      const type = dependencyTypeFromHandles(
+        connection.sourceHandle,
+        connection.targetHandle,
+      );
+      if (!type) {
+        alert("Enlace start-to-finish no soportado. Usa FS, SS o FF.");
+        return;
+      }
       setEdges((eds) => addEdge(connection, eds));
       try {
-        await createDependency(projectId, connection.source, connection.target);
+        await createDependency(
+          projectId,
+          connection.source,
+          connection.target,
+          0,
+          type,
+        );
       } catch (err) {
         alert(err instanceof Error ? err.message : "No se pudo crear la dependencia");
         setEdges(initialEdges);
@@ -267,6 +350,9 @@ export function TaskFlow({
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            isValidConnection={(c) =>
+              dependencyTypeFromHandles(c.sourceHandle, c.targetHandle) != null
+            }
             onEdgesDelete={persistEdgeDeletes}
             onEdgeDoubleClick={(_, edge) => {
               setEdges((eds) => eds.filter((e) => e.id !== edge.id));

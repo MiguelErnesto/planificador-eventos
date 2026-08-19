@@ -22,6 +22,7 @@ export async function recalculateProject(projectId: string) {
     from: e.fromTaskId,
     to: e.toTaskId,
     lag: e.lagDays,
+    type: e.type,
   }));
 
   const preliminary = runCpm(tasks, edges);

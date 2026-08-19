@@ -26,9 +26,10 @@ services:
     working_dir: /app
     ports:
       - "3000:3000"
+      - "5555:5555"
     environment:
       TZ: Europe/Madrid
-      DATABASE_URL: postgresql://planificador:planificador@postgres:5432/planificador_eventos?schema=public
+      DATABASE_URL: postgresql://planificador:planificador@postgres:5432/planificador_eventos?schema=public&sslmode=disable
       NODE_ENV: development
       WATCHPACK_POLLING: "true"
       CHOKIDAR_USEPOLLING: "true"
@@ -44,6 +45,18 @@ services:
     command: ["npm", "run", "dev"]
     stdin_open: true
     tty: true
+
+  adminer:
+    image: adminer:4
+    container_name: planificador-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
   postgres_data:
