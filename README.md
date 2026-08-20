@@ -1,4 +1,4 @@
-# Planificador de Eventos y Bodas
+# Planificador de Proyectos, Eventos y Tareas
 
 App web para planificar eventos (bodas, etc.) como un grafo de tareas con dependencias. Calcula el **camino crítico (CPM)**: fechas más tempranas/tardías, holgura y qué tareas no pueden retrasarse. El grafo se edita en pantalla (nodos, enlaces FS/SS/FF, lag, progreso).
 
