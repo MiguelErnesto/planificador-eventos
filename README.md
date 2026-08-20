@@ -1,52 +1,52 @@
 # Planificador de Eventos y Bodas
 
-MVP de logística con dependencias visuales y algoritmo de camino crítico (CPM).
+App web para planificar eventos (bodas, etc.) como un grafo de tareas con dependencias. Calcula el **camino crítico (CPM)**: fechas más tempranas/tardías, holgura y qué tareas no pueden retrasarse. El grafo se edita en pantalla (nodos, enlaces FS/SS/FF, lag, progreso).
+
+Stack: Next.js, Prisma, PostgreSQL, React Flow. El motor CPM está en `lib/cpm`.
 
 ## Requisitos
 
-- **Docker** y **Docker Compose**
-- No hace falta Node.js en el host (el sistema puede seguir en Node 18). El contenedor `app` usa **Node 22**.
-
-El IDE edita los archivos en esta carpeta; el runtime corre en Docker gracias al bind-mount `.` → `/app`.
+- Git
+- Docker y Docker Compose  
+  No hace falta Node.js en el PC.
 
 ## Arranque
 
 ```bash
+git clone https://github.com/MiguelErnesto/planificador-eventos.git
+cd planificador-eventos
 docker compose up --build
 ```
 
-Abre [http://localhost:3000](http://localhost:3000). El primer arranque instala dependencias, aplica migraciones y, si la base está vacía, crea el proyecto **Boda Ana & Luis**.
+Abre http://localhost:3000
 
-Para parar:
+El primer arranque instala dependencias, aplica migraciones y, si la base está vacía, crea el proyecto de ejemplo Boda Ana & Luis.
 
+## Importar base de datos
+
+Importar base de datos con los datos actuales, luego del seeder inicial
+
+Enlace de la descarga:
+https://github.com/MiguelErnesto/planificador-eventos/blob/main/backups/planificador_eventos.sql
+
+Guardarlo en el directorio /backups del proyecto.
+
+Para restaurar en el servidor de base de datos:
+
+```bash
+cd /home/miguel/proyectos/planificador-eventos
+docker exec -i planificador-postgres psql -U planificador -d planificador_eventos < backups/planificador_eventos.sql
+```
+
+## Parar
 ```bash
 docker compose down
 ```
 
-## Comandos (dentro del contenedor)
-
-No uses `npm` en el host. Todo va por `docker compose exec app`:
-
+## Comandos útiles (dentro del contenedor, no hay que ejecutarlos inicialmente)
 ```bash
 docker compose exec app npm test
 docker compose exec app npm run db:seed
 docker compose exec app npm run db:reset
-docker compose exec app npx prisma migrate deploy
 ```
 
-| Comando | Descripción |
-|---------|-------------|
-| `docker compose up --build` | App (Node 22) + Postgres 16 |
-| `docker compose exec app npm test` | Tests del motor CPM (Vitest) |
-| `docker compose exec app npm run db:seed` | Reemplaza datos con el ejemplo de boda |
-| `docker compose exec app npm run db:reset` | Reset DB + seed |
-
-## Variables
-
-- `DATABASE_URL` — dentro del contenedor usa el hostname `postgres` (Compose la inyecta; ver `.env.example`).
-
-## Stack
-
-Next.js (App Router), Tailwind CSS, Prisma, PostgreSQL, React Flow, CPM en TypeScript puro (`lib/cpm`).
-
-Documentación de arquitectura: [`docs/arquitectura-planificador.pdf`](docs/arquitectura-planificador.pdf) · Plan: [`docs/plan-mvp.md`](docs/plan-mvp.md)
