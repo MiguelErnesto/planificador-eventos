@@ -4,9 +4,18 @@ import { CpmEdge, CpmResult, CpmTask } from "./types";
 
 const SLACK_EPS = 1e-9;
 
+/** A task is date-critical when event slack is 2 days or less (including overdue). */
+export const EVENT_CRITICAL_SLACK_DAYS = 2;
+
+export function isEventCritical(slackDays: number): boolean {
+  return slackDays <= EVENT_CRITICAL_SLACK_DAYS;
+}
+
 export type RunCpmOptions = {
-  /** Absolute horizon in relative days. Defaults to max EF. */
+  /** Event (or other deadline) day in relative days. Defaults to max EF. */
   horizon?: number;
+  /** Earliest day pending work may start. Defaults to 0 (planning anchor). */
+  nowDay?: number;
 };
 
 export function runCpm(
@@ -18,20 +27,24 @@ export function runCpm(
     return { byId: {}, projectDuration: 0, criticalPath: [] };
   }
 
-  const { ES, EF, projectDuration } = forwardPass(tasks, edges);
-  const horizon = options.horizon ?? projectDuration;
-  const { LS, LF } = backwardPass(tasks, edges, EF, horizon);
+  const { ES, EF, projectDuration } = forwardPass(tasks, edges, {
+    nowDay: options.nowDay,
+  });
+  const network = backwardPass(tasks, edges, EF, projectDuration);
+  const eventHorizon = options.horizon ?? projectDuration;
+  const event = backwardPass(tasks, edges, EF, eventHorizon);
 
   const byId: CpmResult["byId"] = {};
   for (const task of tasks) {
-    const slack = LS[task.id] - ES[task.id];
+    const networkSlack = network.LS[task.id] - ES[task.id];
+    const slack = event.LS[task.id] - ES[task.id];
     byId[task.id] = {
       ES: ES[task.id],
       EF: EF[task.id],
-      LS: LS[task.id],
-      LF: LF[task.id],
+      LS: event.LS[task.id],
+      LF: event.LF[task.id],
       slack,
-      critical: Math.abs(slack) <= SLACK_EPS,
+      critical: Math.abs(networkSlack) <= SLACK_EPS,
     };
   }
 

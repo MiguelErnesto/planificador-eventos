@@ -89,7 +89,8 @@ export async function updateTask(
   if (
     data.durationDays !== undefined ||
     data.fixedStart !== undefined ||
-    data.title !== undefined
+    data.title !== undefined ||
+    data.progressPct !== undefined
   ) {
     await recalculateProject(existing.projectId);
   }

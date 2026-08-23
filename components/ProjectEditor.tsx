@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { format } from "date-fns";
+import { format, differenceInCalendarDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { TaskFlow, type FlowTask, type FlowEdge } from "@/components/graph/TaskFlow";
 import { TaskGantt } from "@/components/gantt/TaskGantt";
@@ -23,6 +23,37 @@ type Task = FlowTask & {
 };
 
 type Edge = FlowEdge;
+
+function daysPhrase(days: number) {
+  const n = Math.abs(Math.round(days));
+  return `${n} ${n === 1 ? "día" : "días"}`;
+}
+
+function TaskMarginCopy({
+  slackDays,
+  isCritical,
+}: {
+  slackDays: number;
+  isCritical: boolean;
+}) {
+  const slack = Math.round(slackDays);
+  return (
+    <div className="space-y-1">
+      <p>
+        {slack < 0
+          ? "Desde hoy, esta tarea no llega a la fecha."
+          : `Desde hoy, puedes retrasar ${daysPhrase(slack)} y aún llegar a la fecha.`}
+      </p>
+      <p className={isCritical ? "text-critical" : "text-muted"}>
+        {isCritical
+          ? slack < 0
+            ? "Crítica: no llega a la fecha del evento."
+            : "Crítica: el margen hasta la fecha es de 2 días o menos."
+          : "Amplio: aún hay margen hasta la fecha."}
+      </p>
+    </div>
+  );
+}
 
 function TaskProgressSlider({
   taskId,
@@ -65,16 +96,24 @@ export function ProjectEditor({
   projectId,
   projectName,
   eventDate,
+  today,
   tasks,
   edges,
   baseDuration,
+  exceedsEventDate,
+  overrunDays,
+  planSlackDays,
 }: {
   projectId: string;
   projectName: string;
   eventDate: string;
+  today: string;
   tasks: Task[];
   edges: Edge[];
   baseDuration: number;
+  exceedsEventDate: boolean;
+  overrunDays: number;
+  planSlackDays: number;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [connectorSelected, setConnectorSelected] = useState(false);
@@ -98,7 +137,7 @@ export function ProjectEditor({
 
     const startDate = startDates.length
       ? startDates.reduce((a, b) => (a < b ? a : b))
-      : calendarDate(eventDate);
+      : calendarDate(today);
     const endDate = endDates.length
       ? endDates.reduce((a, b) => (a > b ? a : b))
       : addCalendarDays(startDate, Math.max(durationDays, 0));
@@ -106,10 +145,13 @@ export function ProjectEditor({
     return {
       startDate,
       endDate,
-      durationDays,
+      durationDays: Math.max(
+        0,
+        differenceInCalendarDays(endDate, startDate),
+      ),
       progressPct: eventProgressPct(tasks),
     };
-  }, [tasks, baseDuration, eventDate]);
+  }, [tasks, baseDuration, today]);
 
   return (
     <div className="space-y-6">
@@ -122,6 +164,10 @@ export function ProjectEditor({
             {projectName}
           </h1>
           <div className="text-sm text-muted">
+            <p>
+              Plan desde hoy:{" "}
+              {format(calendarDate(today), "d MMMM yyyy", { locale: es })}
+            </p>
             <p>
               Inicia:{" "}
               {format(planRange.startDate, "d MMMM yyyy", { locale: es })}
@@ -136,6 +182,23 @@ export function ProjectEditor({
               {pending ? " · guardando…" : ""}
             </p>
             <p>Progreso: {planRange.progressPct}%</p>
+            <p
+              className={
+                Math.round(planSlackDays) <= 2 ? "text-critical font-medium" : undefined
+              }
+            >
+              Holgura:{" "}
+              {Math.round(planSlackDays) < 0 ? "−" : ""}
+              {daysPhrase(planSlackDays)}
+            </p>
+            {exceedsEventDate && (
+              <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                El plan no llega a la fecha del evento
+                {overrunDays > 0
+                  ? ` (se pasa ${overrunDays} ${overrunDays === 1 ? "día" : "días"}).`
+                  : "."}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -258,22 +321,35 @@ export function ProjectEditor({
                     )
                   }
                 />
-                <p>
-                  Holgura: <strong>{selected.slackDays.toFixed(1)}d</strong>
-                  {selected.isCritical && (
-                    <span className="ml-2 text-critical">Crítica</span>
-                  )}
-                </p>
+                <TaskMarginCopy
+                  slackDays={selected.slackDays}
+                  isCritical={selected.isCritical}
+                />
                 {selected.earliestStart && selected.earliestFinish && (
-                  <p className="text-muted">
-                    {format(calendarDate(selected.earliestStart), "d MMM", {
-                      locale: es,
-                    })}{" "}
-                    →{" "}
-                    {format(calendarDate(selected.earliestFinish), "d MMM", {
-                      locale: es,
-                    })}
-                  </p>
+                  <div className="space-y-0.5 text-muted">
+                    <p>
+                      Más temprano:{" "}
+                      {format(calendarDate(selected.earliestStart), "d MMM", {
+                        locale: es,
+                      })}{" "}
+                      →{" "}
+                      {format(calendarDate(selected.earliestFinish), "d MMM", {
+                        locale: es,
+                      })}
+                    </p>
+                    {selected.latestStart && selected.latestFinish && (
+                      <p>
+                        Más tarde:{" "}
+                        {format(calendarDate(selected.latestStart), "d MMM", {
+                          locale: es,
+                        })}{" "}
+                        →{" "}
+                        {format(calendarDate(selected.latestFinish), "d MMM", {
+                          locale: es,
+                        })}
+                      </p>
+                    )}
+                  </div>
                 )}
                 <div>
                   <p className="mb-1 text-muted">Predecesores</p>
@@ -330,6 +406,7 @@ export function ProjectEditor({
           <TaskGantt
             tasks={tasks}
             eventDate={eventDate}
+            today={today}
             onSelectTask={(id) => {
               setSelectedId(id);
               setConnectorSelected(false);

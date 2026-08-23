@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { getProjectBundle } from "@/lib/queries";
-import { defaultPlanningAnchor, toRelativeDays } from "@/lib/dates";
-import { runCpm, CpmEdge, CpmTask } from "@/lib/cpm";
+import { recalculateProject } from "@/lib/project-cpm";
 import { ProjectEditor } from "@/components/ProjectEditor";
 
 export const dynamic = "force-dynamic";
@@ -10,34 +9,23 @@ type Props = { params: Promise<{ id: string }> };
 
 export default async function ProjectPage({ params }: Props) {
   const { id } = await params;
+  const existing = await getProjectBundle(id);
+  if (!existing) notFound();
+
+  const cpm = await recalculateProject(id);
   const project = await getProjectBundle(id);
   if (!project) notFound();
-
-  const anchor = defaultPlanningAnchor(project.eventDate);
-  const eventDay = toRelativeDays(project.eventDate, anchor);
-  const tasks: CpmTask[] = project.tasks.map((t) => ({
-    id: t.id,
-    duration: t.durationDays,
-    fixedStart:
-      t.fixedStart != null ? toRelativeDays(t.fixedStart, anchor) : undefined,
-  }));
-  const edges: CpmEdge[] = project.edges.map((e) => ({
-    from: e.fromTaskId,
-    to: e.toTaskId,
-    lag: e.lagDays,
-    type: e.type,
-  }));
-  const preliminary = runCpm(tasks, edges);
-  const cpm = runCpm(tasks, edges, {
-    horizon: Math.max(preliminary.projectDuration, eventDay),
-  });
 
   return (
     <ProjectEditor
       projectId={project.id}
       projectName={project.name}
       eventDate={project.eventDate.toISOString()}
-      baseDuration={cpm.projectDuration}
+      today={cpm.today.toISOString()}
+      baseDuration={cpm.workDurationDays}
+      exceedsEventDate={cpm.exceedsEventDate}
+      overrunDays={cpm.overrunDays}
+      planSlackDays={cpm.planSlackDays}
       tasks={project.tasks.map((t) => ({
         id: t.id,
         title: t.title,

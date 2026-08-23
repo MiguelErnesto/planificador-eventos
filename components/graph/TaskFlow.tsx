@@ -85,7 +85,7 @@ function TaskNode({ data }: NodeProps) {
         />
         <p className="relative text-sm font-semibold text-slate-800">{d.title}</p>
         <p className="relative text-xs text-muted">
-          {d.durationDays}d · {d.progressPct}% · holgura {d.slackDays.toFixed(0)}d
+          {d.durationDays}d · {d.progressPct}%
         </p>
         {d.isCritical && (
           <span className="relative mt-1 inline-block rounded bg-red-50 px-1.5 text-[10px] font-medium uppercase tracking-wide text-critical">
