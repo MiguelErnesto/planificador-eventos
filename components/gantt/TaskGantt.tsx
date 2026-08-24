@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { differenceInCalendarDays, format, isSameDay, isWeekend } from "date-fns";
 import { es } from "date-fns/locale";
 import { ControlButton } from "@xyflow/react";
@@ -26,6 +26,7 @@ const LABEL_W = 280;
 const ZOOM_MIN = 0.4;
 const ZOOM_MAX = 2.5;
 const ZOOM_STEP = 0.2;
+const LOOKBACK_DAYS = 21;
 
 function PlusIcon() {
   return (
@@ -83,9 +84,11 @@ export function TaskGantt({
   const wrapRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const [locked, setLocked] = useState(false);
-  const [dragging, setDragging] = useState<string | null>(null);
+  const [drag, setDrag] = useState<{ id: string; days: number } | null>(null);
   const dragStartX = useRef(0);
-  const dragOriginDays = useRef(0);
+  const dragDaysRef = useRef(0);
+  const dayPxRef = useRef(DAY_PX);
+  const didInitScroll = useRef(false);
 
   const { minDay, maxDay, rows } = useMemo(() => {
     const starts = tasks
@@ -100,7 +103,9 @@ export function TaskGantt({
 
     const minCandidates = [...starts, todayDate, event];
     const maxCandidates = [...finishes, ...latestFinishes, event, todayDate];
-    const min = minCandidates.reduce((a, b) => (a < b ? a : b));
+    const contentMin = minCandidates.reduce((a, b) => (a < b ? a : b));
+    const lookback = addCalendarDays(todayDate, -LOOKBACK_DAYS);
+    const min = contentMin < lookback ? contentMin : lookback;
     const max = maxCandidates.reduce((a, b) => (a > b ? a : b));
     return { minDay: min, maxDay: max, rows: tasks };
   }, [tasks, event, todayDate]);
@@ -109,7 +114,23 @@ export function TaskGantt({
   const eventOffset = differenceInCalendarDays(event, minDay);
   const todayOffset = differenceInCalendarDays(todayDate, minDay);
   const dayPx = DAY_PX * zoom;
+  dayPxRef.current = dayPx;
   const interactive = !locked;
+  const startsKey = tasks
+    .map((t) => `${t.id}:${t.earliestStart ?? ""}`)
+    .join("|");
+
+  useEffect(() => {
+    setDrag(null);
+  }, [startsKey]);
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el || didInitScroll.current) return;
+    const pastVisiblePx = 3 * dayPx;
+    el.scrollLeft = Math.max(0, todayOffset * dayPx - pastVisiblePx);
+    didInitScroll.current = true;
+  }, [todayOffset, dayPx]);
 
   const days = useMemo(
     () => Array.from({ length: totalDays }, (_, i) => addCalendarDays(minDay, i)),
@@ -158,7 +179,9 @@ export function TaskGantt({
   return (
     <div
       ref={wrapRef}
-      className="w-full overflow-auto rounded-2xl border border-border bg-panel"
+      className={`w-full overflow-auto rounded-2xl border border-border bg-panel ${
+        drag ? "select-none" : ""
+      }`}
     >
       <div className="min-w-full" style={{ width: LABEL_W + totalDays * dayPx }}>
         <div className="sticky top-0 z-20 flex items-stretch border-b border-border bg-slate-50 text-xs text-muted">
@@ -274,8 +297,10 @@ export function TaskGantt({
             const finish = task.earliestFinish
               ? calendarDate(task.earliestFinish)
               : addCalendarDays(start, Math.max(task.durationDays, 0));
+            const extraDays = drag?.id === task.id ? drag.days : 0;
             const barDays = Math.max(0, differenceInCalendarDays(finish, start));
-            const left = differenceInCalendarDays(start, minDay) * dayPx;
+            const left =
+              (differenceInCalendarDays(start, minDay) + extraDays) * dayPx;
             const width = barDays > 0 ? barDays * dayPx : 4;
             const latestFinish = task.latestFinish
               ? calendarDate(task.latestFinish)
@@ -332,19 +357,34 @@ export function TaskGantt({
                     tabIndex={0}
                     onMouseDown={(e) => {
                       if (!interactive) return;
-                      setDragging(task.id);
+                      e.preventDefault();
                       dragStartX.current = e.clientX;
-                      dragOriginDays.current = 0;
+                      dragDaysRef.current = 0;
+                      setDrag({ id: task.id, days: 0 });
                       const onMove = (ev: MouseEvent) => {
-                        dragOriginDays.current = Math.round(
-                          (ev.clientX - dragStartX.current) / dayPx,
+                        let days = Math.round(
+                          (ev.clientX - dragStartX.current) / dayPxRef.current,
                         );
+                        if (task.progressPct < 100 && task.earliestStart) {
+                          const startDate = calendarDate(task.earliestStart);
+                          const minDelta = differenceInCalendarDays(
+                            todayDate,
+                            startDate,
+                          );
+                          days = Math.max(days, minDelta);
+                        }
+                        dragDaysRef.current = days;
+                        setDrag({ id: task.id, days });
                       };
-                      const onUp = async () => {
+                      const onUp = () => {
                         window.removeEventListener("mousemove", onMove);
                         window.removeEventListener("mouseup", onUp);
-                        setDragging(null);
-                        await commitShift(task, dragOriginDays.current);
+                        const days = dragDaysRef.current;
+                        if (days === 0) {
+                          setDrag(null);
+                          return;
+                        }
+                        void commitShift(task, days);
                       };
                       window.addEventListener("mousemove", onMove);
                       window.addEventListener("mouseup", onUp);
@@ -355,7 +395,7 @@ export function TaskGantt({
                         : "cursor-default"
                     } ${
                       task.isCritical ? "bg-critical" : "bg-accent"
-                    } ${dragging === task.id ? "opacity-80" : ""}`}
+                    } ${drag?.id === task.id ? "opacity-80" : ""}`}
                     style={{ left, width }}
                   >
                     <div

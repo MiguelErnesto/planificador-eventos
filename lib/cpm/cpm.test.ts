@@ -178,6 +178,31 @@ describe("CPM", () => {
     expect(result.byId.A.slack).toBe(14);
   });
 
+  it("floors pending work with a past fixedStart at nowDay", () => {
+    const result = runCpm(
+      [{ id: "A", duration: 2, fixedStart: 5 }],
+      [],
+      { nowDay: 20, horizon: 40 },
+    );
+    expect(result.byId.A.ES).toBe(20);
+    expect(result.byId.A.EF).toBe(22);
+  });
+
+  it("does not floor finished work (duration 0) at nowDay", () => {
+    const result = runCpm(
+      [
+        { id: "Done", duration: 0, fixedStart: 5 },
+        { id: "Next", duration: 3 },
+      ],
+      [{ from: "Done", to: "Next" }],
+      { nowDay: 20, horizon: 40 },
+    );
+    expect(result.byId.Done.ES).toBe(5);
+    expect(result.byId.Done.EF).toBe(5);
+    expect(result.byId.Next.ES).toBe(20);
+    expect(result.byId.Next.EF).toBe(23);
+  });
+
   it("keeps a future fixedStart later than nowDay", () => {
     const result = runCpm(
       [
