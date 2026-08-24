@@ -356,8 +356,11 @@ export function TaskGantt({
                     aria-label={`Mover ${task.title}`}
                     tabIndex={0}
                     onMouseDown={(e) => {
-                      if (!interactive) return;
                       e.preventDefault();
+                      if (!interactive) {
+                        onSelectTask(task.id);
+                        return;
+                      }
                       dragStartX.current = e.clientX;
                       dragDaysRef.current = 0;
                       setDrag({ id: task.id, days: 0 });
@@ -380,6 +383,7 @@ export function TaskGantt({
                         window.removeEventListener("mousemove", onMove);
                         window.removeEventListener("mouseup", onUp);
                         const days = dragDaysRef.current;
+                        onSelectTask(task.id);
                         if (days === 0) {
                           setDrag(null);
                           return;

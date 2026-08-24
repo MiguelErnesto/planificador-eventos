@@ -209,6 +209,7 @@ export function ProjectEditor({
             projectId={projectId}
             tasks={tasks}
             edges={edges}
+            selectedTaskId={selectedId}
             onSelectTask={(id) => {
               setSelectedId(id);
               setConnectorSelected(false);
@@ -243,7 +244,9 @@ export function ProjectEditor({
               <form
                 action={(fd) => {
                   startTransition(async () => {
-                    await createTask(projectId, fd);
+                    const id = await createTask(projectId, fd);
+                    setSelectedId(id);
+                    setConnectorSelected(false);
                   });
                 }}
                 className="space-y-2 border-t border-border px-4 py-3"

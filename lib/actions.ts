@@ -41,7 +41,7 @@ export async function createTask(projectId: string, formData: FormData) {
     throw new Error("Título y duración válidos son obligatorios");
   }
   const count = await prisma.task.count({ where: { projectId } });
-  await prisma.task.create({
+  const task = await prisma.task.create({
     data: {
       projectId,
       title,
@@ -52,6 +52,7 @@ export async function createTask(projectId: string, formData: FormData) {
   });
   await recalculateProject(projectId);
   revalidateProject(projectId);
+  return task.id;
 }
 
 export async function updateTask(
