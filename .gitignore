@@ -20,6 +20,8 @@
 # production
 /build
 
+.env copy.example
+
 # misc
 .DS_Store
 *.pem

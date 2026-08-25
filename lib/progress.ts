@@ -1,3 +1,12 @@
+export function remainingDurationDays(
+  durationDays: number,
+  progressPct: number,
+): number {
+  const pct = Math.min(100, Math.max(0, progressPct));
+  if (pct >= 100) return 0;
+  return Math.max(0, Math.round(durationDays * (1 - pct / 100)));
+}
+
 export function eventProgressPct(
   tasks: { progressPct: number; durationDays: number }[],
 ): number {

@@ -50,7 +50,7 @@ export type FlowEdge = {
   type: DependencyType;
 };
 
-function TaskNode({ data }: NodeProps) {
+function TaskNode({ data, selected }: NodeProps) {
   const d = data as FlowTask;
   const fill = Math.min(100, Math.max(0, d.progressPct));
   return (
@@ -73,8 +73,12 @@ function TaskNode({ data }: NodeProps) {
       />
       <div
         className={`relative overflow-hidden rounded-xl border-2 bg-white px-3 py-2 shadow-sm ${
-          d.isCritical ? "border-critical" : "border-slate-200"
-        }`}
+          d.isCritical
+            ? "border-critical"
+            : selected
+              ? "border-accent"
+              : "border-slate-200"
+        } ${selected ? "ring-2 ring-accent/40" : ""}`}
       >
         <div
           aria-hidden
@@ -85,7 +89,7 @@ function TaskNode({ data }: NodeProps) {
         />
         <p className="relative text-sm font-semibold text-slate-800">{d.title}</p>
         <p className="relative text-xs text-muted">
-          {d.durationDays}d · {d.progressPct}% · holgura {d.slackDays.toFixed(0)}d
+          {d.durationDays}d · {d.progressPct}%
         </p>
         {d.isCritical && (
           <span className="relative mt-1 inline-block rounded bg-red-50 px-1.5 text-[10px] font-medium uppercase tracking-wide text-critical">
@@ -218,17 +222,21 @@ function DependencyEdge({
 const edgeTypes = { dependency: DependencyEdge };
 const NODE_WIDTH = 180;
 const CANVAS_PAD = 40;
+const MINIMAP_OFFSET_X = 140;
+const MINIMAP_OFFSET_Y = 100;
 
 export function TaskFlow({
   projectId,
   tasks,
   edges,
+  selectedTaskId,
   onSelectTask,
   onSelectConnector,
 }: {
   projectId: string;
   tasks: FlowTask[];
   edges: FlowEdge[];
+  selectedTaskId: string | null;
   onSelectTask: (id: string | null) => void;
   onSelectConnector: (selected: boolean) => void;
 }) {
@@ -268,9 +276,14 @@ export function TaskFlow({
   const [rfEdges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
   useEffect(() => {
-    setNodes(initialNodes);
+    setNodes(
+      initialNodes.map((n) => ({
+        ...n,
+        selected: n.id === selectedTaskId,
+      })),
+    );
     setEdges(initialEdges);
-  }, [initialNodes, initialEdges, setNodes, setEdges]);
+  }, [initialNodes, initialEdges, selectedTaskId, setNodes, setEdges]);
 
   const canvasWidth = useMemo(() => {
     if (tasks.length === 0) return undefined;
@@ -282,7 +295,11 @@ export function TaskFlow({
     const ns = instance.getNodes();
     const minX = ns.length ? Math.min(...ns.map((n) => n.position.x)) : 0;
     const minY = ns.length ? Math.min(...ns.map((n) => n.position.y)) : 0;
-    instance.setViewport({ x: -minX + 16, y: -minY + 16, zoom: 1 });
+    instance.setViewport({
+      x: -minX + MINIMAP_OFFSET_X,
+      y: -minY + MINIMAP_OFFSET_Y,
+      zoom: 1,
+    });
   }, []);
 
   const onConnect = useCallback(
@@ -375,7 +392,11 @@ export function TaskFlow({
             onInit={onInit}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
-            defaultViewport={{ x: 16, y: 16, zoom: 1 }}
+            defaultViewport={{
+              x: MINIMAP_OFFSET_X,
+              y: MINIMAP_OFFSET_Y,
+              zoom: 1,
+            }}
             zoomOnScroll={false}
             preventScrolling={false}
             proOptions={{ hideAttribution: true }}

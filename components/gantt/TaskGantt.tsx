@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { differenceInCalendarDays, format, isSameDay, isWeekend } from "date-fns";
 import { es } from "date-fns/locale";
 import { ControlButton } from "@xyflow/react";
@@ -14,8 +14,11 @@ export type GanttTask = {
   durationDays: number;
   earliestStart: Date | string | null;
   earliestFinish: Date | string | null;
+  latestStart: Date | string | null;
+  latestFinish: Date | string | null;
   isCritical: boolean;
   progressPct: number;
+  slackDays?: number;
 };
 
 const DAY_PX = 28;
@@ -23,6 +26,7 @@ const LABEL_W = 280;
 const ZOOM_MIN = 0.4;
 const ZOOM_MAX = 2.5;
 const ZOOM_STEP = 0.2;
+const LOOKBACK_DAYS = 21;
 
 function PlusIcon() {
   return (
@@ -67,19 +71,24 @@ function UnlockIcon() {
 export function TaskGantt({
   tasks,
   eventDate,
+  today,
   onSelectTask,
 }: {
   tasks: GanttTask[];
   eventDate: Date | string;
+  today: Date | string;
   onSelectTask: (id: string) => void;
 }) {
   const event = calendarDate(eventDate);
+  const todayDate = calendarDate(today);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const [locked, setLocked] = useState(false);
-  const [dragging, setDragging] = useState<string | null>(null);
+  const [drag, setDrag] = useState<{ id: string; days: number } | null>(null);
   const dragStartX = useRef(0);
-  const dragOriginDays = useRef(0);
+  const dragDaysRef = useRef(0);
+  const dayPxRef = useRef(DAY_PX);
+  const didInitScroll = useRef(false);
 
   const { minDay, maxDay, rows } = useMemo(() => {
     const starts = tasks
@@ -88,21 +97,40 @@ export function TaskGantt({
     const finishes = tasks
       .map((t) => (t.earliestFinish ? calendarDate(t.earliestFinish) : null))
       .filter(Boolean) as Date[];
+    const latestFinishes = tasks
+      .map((t) => (t.latestFinish ? calendarDate(t.latestFinish) : null))
+      .filter(Boolean) as Date[];
 
-    if (starts.length === 0) {
-      return { minDay: event, maxDay: event, rows: [] as GanttTask[] };
-    }
-
-    const min = starts.reduce((a, b) => (a < b ? a : b));
-    const maxCandidates = [...finishes, event];
+    const minCandidates = [...starts, todayDate, event];
+    const maxCandidates = [...finishes, ...latestFinishes, event, todayDate];
+    const contentMin = minCandidates.reduce((a, b) => (a < b ? a : b));
+    const lookback = addCalendarDays(todayDate, -LOOKBACK_DAYS);
+    const min = contentMin < lookback ? contentMin : lookback;
     const max = maxCandidates.reduce((a, b) => (a > b ? a : b));
     return { minDay: min, maxDay: max, rows: tasks };
-  }, [tasks, event]);
+  }, [tasks, event, todayDate]);
 
   const totalDays = Math.max(1, differenceInCalendarDays(maxDay, minDay) + 2);
   const eventOffset = differenceInCalendarDays(event, minDay);
+  const todayOffset = differenceInCalendarDays(todayDate, minDay);
   const dayPx = DAY_PX * zoom;
+  dayPxRef.current = dayPx;
   const interactive = !locked;
+  const startsKey = tasks
+    .map((t) => `${t.id}:${t.earliestStart ?? ""}`)
+    .join("|");
+
+  useEffect(() => {
+    setDrag(null);
+  }, [startsKey]);
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el || didInitScroll.current) return;
+    const pastVisiblePx = 3 * dayPx;
+    el.scrollLeft = Math.max(0, todayOffset * dayPx - pastVisiblePx);
+    didInitScroll.current = true;
+  }, [todayOffset, dayPx]);
 
   const days = useMemo(
     () => Array.from({ length: totalDays }, (_, i) => addCalendarDays(minDay, i)),
@@ -137,13 +165,23 @@ export function TaskGantt({
     if (!task.earliestStart || deltaDays === 0) return;
     const next = calendarDate(task.earliestStart);
     next.setDate(next.getDate() + deltaDays);
+    if (task.latestStart) {
+      const latest = calendarDate(task.latestStart);
+      if (next > latest) {
+        alert(
+          "Si empiezas en esa fecha, esta tarea ya no llega a la fecha del evento.",
+        );
+      }
+    }
     await updateTask(task.id, { fixedStart: toUtcDateIso(next) });
   }
 
   return (
     <div
       ref={wrapRef}
-      className="w-full overflow-auto rounded-2xl border border-border bg-panel"
+      className={`w-full overflow-auto rounded-2xl border border-border bg-panel ${
+        drag ? "select-none" : ""
+      }`}
     >
       <div className="min-w-full" style={{ width: LABEL_W + totalDays * dayPx }}>
         <div className="sticky top-0 z-20 flex items-stretch border-b border-border bg-slate-50 text-xs text-muted">
@@ -217,6 +255,7 @@ export function TaskGantt({
             <div className="flex">
               {days.map((d, i) => {
                 const isEvent = isSameDay(d, event);
+                const isToday = isSameDay(d, todayDate);
                 const showLabel = i % dayLabelStep === 0;
                 return (
                   <div
@@ -225,9 +264,11 @@ export function TaskGantt({
                     className={`box-border shrink-0 border-r border-border/40 py-0.5 text-center leading-tight ${
                       isEvent
                         ? "bg-accent/20 font-semibold text-accent-dark"
-                        : isWeekend(d)
-                          ? "bg-slate-100/80"
-                          : ""
+                        : isToday
+                          ? "bg-slate-800/10 font-semibold text-slate-800"
+                          : isWeekend(d)
+                            ? "bg-slate-100/80"
+                            : ""
                     }`}
                     style={{ width: dayPx }}
                   >
@@ -235,6 +276,11 @@ export function TaskGantt({
                     {isEvent && (
                       <span className="mt-0.5 block text-[8px] font-medium uppercase">
                         Evento
+                      </span>
+                    )}
+                    {isToday && !isEvent && (
+                      <span className="mt-0.5 block text-[8px] font-medium uppercase">
+                        Hoy
                       </span>
                     )}
                   </div>
@@ -248,8 +294,21 @@ export function TaskGantt({
             const start = task.earliestStart
               ? calendarDate(task.earliestStart)
               : minDay;
-            const left = differenceInCalendarDays(start, minDay) * dayPx;
-            const width = Math.max(task.durationDays, 1) * dayPx;
+            const finish = task.earliestFinish
+              ? calendarDate(task.earliestFinish)
+              : addCalendarDays(start, Math.max(task.durationDays, 0));
+            const extraDays = drag?.id === task.id ? drag.days : 0;
+            const barDays = Math.max(0, differenceInCalendarDays(finish, start));
+            const left =
+              (differenceInCalendarDays(start, minDay) + extraDays) * dayPx;
+            const width = barDays > 0 ? barDays * dayPx : 4;
+            const latestFinish = task.latestFinish
+              ? calendarDate(task.latestFinish)
+              : null;
+            const floatDays =
+              latestFinish && barDays > 0
+                ? differenceInCalendarDays(latestFinish, finish)
+                : 0;
 
             return (
               <div
@@ -271,29 +330,65 @@ export function TaskGantt({
                   }}
                 >
                   <div
+                    className="absolute top-0 bottom-0 z-[1] border-l-2 border-dashed border-slate-700/50"
+                    style={{ left: todayOffset * dayPx }}
+                    title="Hoy"
+                  />
+                  <div
                     className="absolute top-0 bottom-0 z-[1] border-l-2 border-dashed border-accent/70"
                     style={{ left: eventOffset * dayPx }}
                     title="Fecha del evento"
                   />
+                  {floatDays > 0 && (
+                    <div
+                      className={`absolute top-1 h-7 rounded-md ${
+                        task.isCritical ? "bg-critical/20" : "bg-accent/20"
+                      }`}
+                      style={{
+                        left: left + (barDays > 0 ? barDays * dayPx : 4),
+                        width: floatDays * dayPx,
+                      }}
+                      title="Margen hasta la fecha del evento"
+                    />
+                  )}
                   <div
                     role="slider"
                     aria-label={`Mover ${task.title}`}
                     tabIndex={0}
                     onMouseDown={(e) => {
-                      if (!interactive) return;
-                      setDragging(task.id);
+                      e.preventDefault();
+                      if (!interactive) {
+                        onSelectTask(task.id);
+                        return;
+                      }
                       dragStartX.current = e.clientX;
-                      dragOriginDays.current = 0;
+                      dragDaysRef.current = 0;
+                      setDrag({ id: task.id, days: 0 });
                       const onMove = (ev: MouseEvent) => {
-                        dragOriginDays.current = Math.round(
-                          (ev.clientX - dragStartX.current) / dayPx,
+                        let days = Math.round(
+                          (ev.clientX - dragStartX.current) / dayPxRef.current,
                         );
+                        if (task.progressPct < 100 && task.earliestStart) {
+                          const startDate = calendarDate(task.earliestStart);
+                          const minDelta = differenceInCalendarDays(
+                            todayDate,
+                            startDate,
+                          );
+                          days = Math.max(days, minDelta);
+                        }
+                        dragDaysRef.current = days;
+                        setDrag({ id: task.id, days });
                       };
-                      const onUp = async () => {
+                      const onUp = () => {
                         window.removeEventListener("mousemove", onMove);
                         window.removeEventListener("mouseup", onUp);
-                        setDragging(null);
-                        await commitShift(task, dragOriginDays.current);
+                        const days = dragDaysRef.current;
+                        onSelectTask(task.id);
+                        if (days === 0) {
+                          setDrag(null);
+                          return;
+                        }
+                        void commitShift(task, days);
                       };
                       window.addEventListener("mousemove", onMove);
                       window.addEventListener("mouseup", onUp);
@@ -304,7 +399,7 @@ export function TaskGantt({
                         : "cursor-default"
                     } ${
                       task.isCritical ? "bg-critical" : "bg-accent"
-                    } ${dragging === task.id ? "opacity-80" : ""}`}
+                    } ${drag?.id === task.id ? "opacity-80" : ""}`}
                     style={{ left, width }}
                   >
                     <div

@@ -29,12 +29,22 @@ function forwardESFromEdge(
   }
 }
 
-export function forwardPass(tasks: CpmTask[], edges: CpmEdge[]): ForwardResult {
+export type ForwardPassOptions = {
+  /** Earliest calendar day a pending task may start (relative to the planning anchor). */
+  nowDay?: number;
+};
+
+export function forwardPass(
+  tasks: CpmTask[],
+  edges: CpmEdge[],
+  options: ForwardPassOptions = {},
+): ForwardResult {
   const byId = new Map(tasks.map((t) => [t.id, t]));
   const preds = new Map<string, CpmEdge[]>();
   for (const t of tasks) preds.set(t.id, []);
   for (const e of edges) preds.get(e.to)!.push(e);
 
+  const nowDay = options.nowDay ?? 0;
   const order = topologicalSort(tasks, edges);
   const ES: Record<string, number> = {};
   const EF: Record<string, number> = {};
@@ -42,14 +52,22 @@ export function forwardPass(tasks: CpmTask[], edges: CpmEdge[]): ForwardResult {
   for (const id of order) {
     const task = byId.get(id)!;
     const incoming = preds.get(id) ?? [];
-    let es = 0;
-    if (incoming.length > 0) {
-      es = Math.max(
-        ...incoming.map((e) => forwardESFromEdge(e, ES, EF, task.duration)),
-      );
-    }
-    if (task.fixedStart !== undefined) {
-      es = Math.max(es, task.fixedStart);
+    const pending = task.duration > 0;
+    let es: number;
+    if (!pending && task.fixedStart !== undefined) {
+      // Finished work stays on its frozen day, even before nowDay.
+      es = task.fixedStart;
+    } else {
+      es = nowDay;
+      if (incoming.length > 0) {
+        es = Math.max(
+          es,
+          ...incoming.map((e) => forwardESFromEdge(e, ES, EF, task.duration)),
+        );
+      }
+      if (task.fixedStart !== undefined) {
+        es = Math.max(es, task.fixedStart);
+      }
     }
     ES[id] = es;
     EF[id] = es + task.duration;

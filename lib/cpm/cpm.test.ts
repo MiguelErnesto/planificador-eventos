@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runCpm, validateDag, CpmError } from "./index";
+import { runCpm, validateDag, CpmError, isEventCritical } from "./index";
 
 describe("CPM", () => {
   const tasks = [
@@ -106,5 +106,121 @@ describe("CPM", () => {
     );
     expect(result.byId.B.ES).toBe(2);
     expect(result.byId.B.EF).toBe(4);
+  });
+
+  it("nowDay + event horizon: event slack vs network critical", () => {
+    const chain = [
+      { id: "A", duration: 5 },
+      { id: "B", duration: 5 },
+      { id: "C", duration: 3 },
+    ];
+    const chainEdges = [{ from: "A", to: "B" }, { from: "B", to: "C" }];
+    const result = runCpm(chain, chainEdges, { nowDay: 0, horizon: 90 });
+    expect(result.projectDuration).toBe(13);
+    expect(result.byId.A.ES).toBe(0);
+    expect(result.byId.C.EF).toBe(13);
+    expect(result.byId.A.critical).toBe(true);
+    expect(result.byId.B.critical).toBe(true);
+    expect(result.byId.C.critical).toBe(true);
+    expect(result.byId.A.slack).toBe(77);
+    expect(result.byId.C.slack).toBe(77);
+  });
+
+  it("short parallel branch has network slack and more event slack", () => {
+    const result = runCpm(
+      [
+        { id: "A", duration: 10 },
+        { id: "B", duration: 3 },
+        { id: "C", duration: 1 },
+      ],
+      [
+        { from: "A", to: "C" },
+        { from: "B", to: "C" },
+      ],
+      { nowDay: 0, horizon: 90 },
+    );
+    expect(result.byId.A.critical).toBe(true);
+    expect(result.byId.B.critical).toBe(false);
+    expect(result.byId.C.critical).toBe(true);
+    expect(result.byId.A.slack).toBe(79);
+    expect(result.byId.B.slack).toBeGreaterThan(result.byId.A.slack);
+  });
+
+  it("overrunning the event yields negative event slack", () => {
+    const result = runCpm(
+      [
+        { id: "A", duration: 50 },
+        { id: "B", duration: 50 },
+      ],
+      [{ from: "A", to: "B" }],
+      { nowDay: 0, horizon: 90 },
+    );
+    expect(result.projectDuration).toBe(100);
+    expect(result.byId.A.critical).toBe(true);
+    expect(result.byId.B.critical).toBe(true);
+    expect(result.byId.A.slack).toBe(-10);
+    expect(result.byId.B.slack).toBe(-10);
+  });
+
+  it("floors starts at nowDay", () => {
+    const result = runCpm(
+      [
+        { id: "A", duration: 4 },
+        { id: "B", duration: 2 },
+      ],
+      [{ from: "A", to: "B" }],
+      { nowDay: 20, horizon: 40 },
+    );
+    expect(result.byId.A.ES).toBe(20);
+    expect(result.byId.B.ES).toBe(24);
+    expect(result.byId.B.EF).toBe(26);
+    expect(result.byId.A.critical).toBe(true);
+    expect(result.byId.A.slack).toBe(14);
+  });
+
+  it("floors pending work with a past fixedStart at nowDay", () => {
+    const result = runCpm(
+      [{ id: "A", duration: 2, fixedStart: 5 }],
+      [],
+      { nowDay: 20, horizon: 40 },
+    );
+    expect(result.byId.A.ES).toBe(20);
+    expect(result.byId.A.EF).toBe(22);
+  });
+
+  it("does not floor finished work (duration 0) at nowDay", () => {
+    const result = runCpm(
+      [
+        { id: "Done", duration: 0, fixedStart: 5 },
+        { id: "Next", duration: 3 },
+      ],
+      [{ from: "Done", to: "Next" }],
+      { nowDay: 20, horizon: 40 },
+    );
+    expect(result.byId.Done.ES).toBe(5);
+    expect(result.byId.Done.EF).toBe(5);
+    expect(result.byId.Next.ES).toBe(20);
+    expect(result.byId.Next.EF).toBe(23);
+  });
+
+  it("keeps a future fixedStart later than nowDay", () => {
+    const result = runCpm(
+      [
+        { id: "X", duration: 2 },
+        { id: "Y", duration: 2, fixedStart: 30 },
+      ],
+      [{ from: "X", to: "Y" }],
+      { nowDay: 10, horizon: 40 },
+    );
+    expect(result.byId.Y.ES).toBe(30);
+    expect(result.byId.Y.EF).toBe(32);
+  });
+
+  it("isEventCritical when event slack is 2 days or less", () => {
+    expect(isEventCritical(3)).toBe(false);
+    expect(isEventCritical(2)).toBe(true);
+    expect(isEventCritical(1)).toBe(true);
+    expect(isEventCritical(0)).toBe(true);
+    expect(isEventCritical(-4)).toBe(true);
   });
 });
