@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "./prisma";
 import { recalculateProject } from "./project-cpm";
+import { isValidTimeZone } from "./dates";
 import { validateDag, CpmError, type DependencyType } from "./cpm";
 
 function revalidateProject(projectId: string) {
@@ -14,13 +15,16 @@ function revalidateProject(projectId: string) {
 export async function createProject(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const eventDateRaw = String(formData.get("eventDate") ?? "");
+  const timezoneRaw = String(formData.get("timezone") ?? "").trim();
   if (!name || !eventDateRaw) {
     throw new Error("Nombre y fecha del evento son obligatorios");
   }
+  const timezone = isValidTimeZone(timezoneRaw) ? timezoneRaw : "Europe/Madrid";
   const project = await prisma.project.create({
     data: {
       name,
       eventDate: new Date(`${eventDateRaw}T00:00:00.000Z`),
+      timezone,
     },
   });
   revalidatePath("/");
@@ -36,7 +40,7 @@ export async function deleteProject(projectId: string) {
 
 export async function updateProject(
   projectId: string,
-  data: { name?: string; eventDate?: string },
+  data: { name?: string; eventDate?: string; timezone?: string },
 ) {
   const name = data.name?.trim();
   if (data.name !== undefined && !name) {
@@ -44,6 +48,9 @@ export async function updateProject(
   }
   if (data.eventDate !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(data.eventDate)) {
     throw new Error("Fecha del evento no válida");
+  }
+  if (data.timezone !== undefined && !isValidTimeZone(data.timezone)) {
+    throw new Error("Zona horaria no válida");
   }
 
   const existing = await prisma.project.findUniqueOrThrow({
@@ -57,18 +64,21 @@ export async function updateProject(
   const eventDateChanged =
     nextEventDate !== undefined &&
     nextEventDate.getTime() !== existing.eventDate.getTime();
+  const timezoneChanged =
+    data.timezone !== undefined && data.timezone !== existing.timezone;
 
-  if (!nameChanged && !eventDateChanged) return;
+  if (!nameChanged && !eventDateChanged && !timezoneChanged) return;
 
   await prisma.project.update({
     where: { id: projectId },
     data: {
       name: nameChanged ? name : undefined,
       eventDate: eventDateChanged ? nextEventDate : undefined,
+      timezone: timezoneChanged ? data.timezone : undefined,
     },
   });
 
-  if (eventDateChanged) {
+  if (eventDateChanged || timezoneChanged) {
     await recalculateProject(projectId);
   }
   revalidateProject(projectId);

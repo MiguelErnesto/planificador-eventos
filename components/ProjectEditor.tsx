@@ -56,6 +56,47 @@ function TaskMarginCopy({
   );
 }
 
+function TaskTitleInput({
+  taskId,
+  title,
+  onCommit,
+}: {
+  taskId: string;
+  title: string;
+  onCommit: (title: string) => void;
+}) {
+  const [value, setValue] = useState(title);
+  useEffect(() => {
+    setValue(title);
+  }, [taskId, title]);
+
+  function commit(raw: string) {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      setValue(title);
+      return;
+    }
+    if (trimmed !== title) onCommit(trimmed);
+  }
+
+  return (
+    <input
+      type="text"
+      value={value}
+      aria-label="Título de la tarea"
+      className="w-full rounded border border-border px-2 py-1 font-medium text-slate-900"
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={(e) => commit(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          (e.target as HTMLInputElement).blur();
+        }
+      }}
+    />
+  );
+}
+
 function TaskProgressSlider({
   taskId,
   progressPct,
@@ -97,6 +138,7 @@ export function ProjectEditor({
   projectId,
   projectName,
   eventDate,
+  timezone,
   today,
   tasks,
   edges,
@@ -108,6 +150,7 @@ export function ProjectEditor({
   projectId: string;
   projectName: string;
   eventDate: string;
+  timezone: string;
   today: string;
   tasks: Task[];
   edges: Edge[];
@@ -162,6 +205,7 @@ export function ProjectEditor({
             projectId={projectId}
             name={projectName}
             eventDate={eventDate}
+            timezone={timezone}
             layout="header"
           />
           <div className="mt-2 text-sm text-muted">
@@ -298,7 +342,15 @@ export function ProjectEditor({
               <p className="text-sm text-muted">Selecciona una tarea</p>
             ) : (
               <div className="space-y-3 text-sm">
-                <p className="font-medium text-slate-900">{selected.title}</p>
+                <TaskTitleInput
+                  taskId={selected.id}
+                  title={selected.title}
+                  onCommit={(nextTitle) =>
+                    startTransition(async () => {
+                      await updateTask(selected.id, { title: nextTitle });
+                    })
+                  }
+                />
                 <p>
                   Duración:{" "}
                   <input

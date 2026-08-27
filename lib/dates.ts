@@ -68,6 +68,27 @@ export function defaultPlanningAnchor(eventDate: Date, lookbackDays = 180): Date
   return new Date(Date.UTC(y, m, d - lookbackDays));
 }
 
+/** IANA zone of this runtime (browser = equipo; servidor = TZ del contenedor). */
+export function localTimeZone(): string {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz && isValidTimeZone(tz)) return tz;
+  } catch {
+    // ignore
+  }
+  return "Europe/Madrid";
+}
+
+export function isValidTimeZone(tz: string): boolean {
+  if (!tz || tz.length > 80) return false;
+  try {
+    Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Today's calendar date in a IANA timezone, stored as UTC midnight. */
 export function todayUtcInTimeZone(timeZone: string): Date {
   const parts = new Intl.DateTimeFormat("en-CA", {

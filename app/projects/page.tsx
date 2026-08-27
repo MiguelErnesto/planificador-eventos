@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { listProjects } from "@/lib/queries";
 import { NewProjectNameInput } from "@/components/NewProjectNameInput";
+import { LocalTimezoneInput } from "@/components/LocalTimezoneInput";
 import { ProjectListItem } from "@/components/ProjectListItem";
 import { createProject, deleteProject } from "@/lib/actions";
 
@@ -54,6 +55,7 @@ export default async function ProjectsPage() {
               className="rounded-lg border border-border px-3 py-1.5 outline-none ring-accent focus:ring-2"
             />
           </label>
+          <LocalTimezoneInput />
           <button
             type="submit"
             className="rounded-lg bg-accent px-4 py-1.5 font-medium text-white hover:bg-accent-dark"
@@ -81,6 +83,7 @@ export default async function ProjectsPage() {
                 id={p.id}
                 name={p.name}
                 eventDate={p.eventDate.toISOString()}
+                timezone={p.timezone}
                 startsAt={p.startsAt.toISOString()}
                 endsAt={p.endsAt.toISOString()}
                 durationDays={p.durationDays}

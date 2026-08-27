@@ -10,6 +10,7 @@ export function ProjectListItem({
   id,
   name,
   eventDate,
+  timezone,
   startsAt,
   endsAt,
   durationDays,
@@ -20,6 +21,7 @@ export function ProjectListItem({
   id: string;
   name: string;
   eventDate: string;
+  timezone: string;
   startsAt: string;
   endsAt: string;
   durationDays: number;
@@ -44,6 +46,7 @@ export function ProjectListItem({
             projectId={id}
             name={name}
             eventDate={eventDate}
+            timezone={timezone}
             layout="row"
             onCancel={() => setEditing(false)}
             onSaved={() => setEditing(false)}

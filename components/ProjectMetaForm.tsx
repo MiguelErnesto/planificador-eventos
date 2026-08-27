@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { updateProject } from "@/lib/actions";
-import { toDateInputValue } from "@/lib/dates";
+import { localTimeZone, toDateInputValue } from "@/lib/dates";
 
 const fieldClass =
   "rounded-lg border border-border px-3 py-1.5 outline-none ring-accent focus:ring-2";
@@ -11,6 +11,7 @@ export function ProjectMetaForm({
   projectId,
   name: initialName,
   eventDate: initialEventDate,
+  timezone: initialTimezone,
   layout,
   onCancel,
   onSaved,
@@ -18,27 +19,37 @@ export function ProjectMetaForm({
   projectId: string;
   name: string;
   eventDate: Date | string;
+  timezone: string;
   layout: "header" | "row";
   onCancel?: () => void;
   onSaved?: () => void;
 }) {
   const [name, setName] = useState(initialName);
   const [eventDate, setEventDate] = useState(toDateInputValue(initialEventDate));
+  const [timezone, setTimezone] = useState(initialTimezone);
+  const [deviceTz, setDeviceTz] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
     setName(initialName);
     setEventDate(toDateInputValue(initialEventDate));
-  }, [initialName, initialEventDate]);
+    setTimezone(initialTimezone);
+  }, [initialName, initialEventDate, initialTimezone]);
+
+  useEffect(() => {
+    setDeviceTz(localTimeZone());
+  }, []);
 
   const dirty =
     name.trim() !== initialName.trim() ||
-    eventDate !== toDateInputValue(initialEventDate);
+    eventDate !== toDateInputValue(initialEventDate) ||
+    timezone !== initialTimezone;
 
   function reset() {
     setName(initialName);
     setEventDate(toDateInputValue(initialEventDate));
+    setTimezone(initialTimezone);
     setError(null);
     onCancel?.();
   }
@@ -52,7 +63,7 @@ export function ProjectMetaForm({
     setError(null);
     startTransition(async () => {
       try {
-        await updateProject(projectId, { name: trimmed, eventDate });
+        await updateProject(projectId, { name: trimmed, eventDate, timezone });
         onSaved?.();
       } catch (e) {
         setError(e instanceof Error ? e.message : "No se pudo guardar");
@@ -90,6 +101,22 @@ export function ProjectMetaForm({
       aria-label="Fecha del evento"
       className={fieldClass}
     />
+  );
+
+  const timezoneField = (
+    <div className="flex flex-col gap-0.5 text-sm">
+      <span className="text-xs italic text-muted">Zona horaria</span>
+      <p className="py-1.5 text-sm text-slate-800">{timezone}</p>
+      {deviceTz && deviceTz !== timezone && (
+        <button
+          type="button"
+          onClick={() => setTimezone(deviceTz)}
+          className="text-left text-xs text-accent-dark hover:underline"
+        >
+          Usar la de este equipo ({deviceTz})
+        </button>
+      )}
+    </div>
   );
 
   const actions = (
@@ -134,6 +161,7 @@ export function ProjectMetaForm({
               <span className="text-xs italic text-muted">Fecha límite</span>
               {dateField}
             </label>
+            {timezoneField}
             {actions}
           </div>
         </>
@@ -147,6 +175,7 @@ export function ProjectMetaForm({
             <span className="text-xs italic text-muted">Fecha límite</span>
             {dateField}
           </label>
+          {timezoneField}
           {actions}
         </>
       )}
