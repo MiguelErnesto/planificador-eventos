@@ -5,6 +5,7 @@ import { format, differenceInCalendarDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { TaskFlow, type FlowTask, type FlowEdge } from "@/components/graph/TaskFlow";
 import { TaskGantt } from "@/components/gantt/TaskGantt";
+import { ProjectMetaForm } from "@/components/ProjectMetaForm";
 import {
   createTask,
   deleteDependency,
@@ -157,13 +158,13 @@ export function ProjectEditor({
     <div className="space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1
-            className="text-3xl text-slate-900"
-            style={{ fontFamily: "var(--font-brand), serif" }}
-          >
-            {projectName}
-          </h1>
-          <div className="text-sm text-muted">
+          <ProjectMetaForm
+            projectId={projectId}
+            name={projectName}
+            eventDate={eventDate}
+            layout="header"
+          />
+          <div className="mt-2 text-sm text-muted">
             <p>
               Plan desde hoy:{" "}
               {format(calendarDate(today), "d MMMM yyyy", { locale: es })}

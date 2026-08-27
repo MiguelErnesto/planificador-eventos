@@ -34,6 +34,46 @@ export async function deleteProject(projectId: string) {
   revalidatePath("/projects");
 }
 
+export async function updateProject(
+  projectId: string,
+  data: { name?: string; eventDate?: string },
+) {
+  const name = data.name?.trim();
+  if (data.name !== undefined && !name) {
+    throw new Error("El nombre es obligatorio");
+  }
+  if (data.eventDate !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(data.eventDate)) {
+    throw new Error("Fecha del evento no válida");
+  }
+
+  const existing = await prisma.project.findUniqueOrThrow({
+    where: { id: projectId },
+  });
+
+  const nextEventDate = data.eventDate
+    ? new Date(`${data.eventDate}T00:00:00.000Z`)
+    : undefined;
+  const nameChanged = name !== undefined && name !== existing.name;
+  const eventDateChanged =
+    nextEventDate !== undefined &&
+    nextEventDate.getTime() !== existing.eventDate.getTime();
+
+  if (!nameChanged && !eventDateChanged) return;
+
+  await prisma.project.update({
+    where: { id: projectId },
+    data: {
+      name: nameChanged ? name : undefined,
+      eventDate: eventDateChanged ? nextEventDate : undefined,
+    },
+  });
+
+  if (eventDateChanged) {
+    await recalculateProject(projectId);
+  }
+  revalidateProject(projectId);
+}
+
 export async function createTask(projectId: string, formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   const durationDays = Number(formData.get("durationDays") ?? 1);

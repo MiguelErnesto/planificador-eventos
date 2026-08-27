@@ -31,6 +31,12 @@ export function formatCalendarDate(
   return format(calendarDate(value), pattern, options);
 }
 
+/** `YYYY-MM-DD` for `<input type="date">`, using the UTC calendar day. */
+export function toDateInputValue(value: Date | string): string {
+  const { y, m, d } = utcYmd(value);
+  return `${String(y).padStart(4, "0")}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
 /** Persist a local calendar day as UTC midnight so the day does not shift. */
 export function toUtcDateIso(date: Date): string {
   return new Date(
