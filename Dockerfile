@@ -23,4 +23,4 @@ ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 EXPOSE 3000
 
-CMD ["sh", "-c", "rm -f /app/.env && npx prisma migrate deploy && npx tsx scripts/maybe-seed.ts && npx next start --hostname 0.0.0.0 --port ${PORT:-3000}"]
+CMD ["sh", "-c", "printf 'DATABASE_URL=\"%s\"\\n' \"$DATABASE_URL\" > /app/.env && npx prisma migrate deploy && npx tsx scripts/maybe-seed.ts && npx next start --hostname 0.0.0.0 --port ${PORT:-3000}"]
