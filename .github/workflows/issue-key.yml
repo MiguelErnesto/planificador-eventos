@@ -1,0 +1,41 @@
+name: Issue key
+
+on:
+  issues:
+    types: [opened]
+
+concurrency:
+  group: pe-issue-key
+  cancel-in-progress: false
+
+jobs:
+  prefix:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            if (/^PE-\d+\s/i.test(issue.title)) return;
+
+            const items = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "all",
+              per_page: 100,
+            });
+
+            let max = 0;
+            for (const it of items) {
+              const m = it.title.match(/^PE-(\d+)\b/i);
+              if (m) max = Math.max(max, Number(m[1]));
+            }
+
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              title: `PE-${max + 1} ${issue.title}`,
+            });
