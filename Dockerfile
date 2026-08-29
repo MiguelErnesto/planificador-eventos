@@ -8,12 +8,16 @@ RUN apt-get update \
 
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
-RUN DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build?schema=public" npm ci
+# Prisma 6 get-config lee .env del disco, no solo el entorno del RUN.
+RUN printf 'DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build?schema=public"\n' > .env \
+  && npm ci
 
 COPY . .
 
-# Solo en el build: no dejar ENV para que Railway inyecte DATABASE_URL al arrancar.
-RUN DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build?schema=public" npm run build
+# Recrear .env: COPY . . no lo trae (.dockerignore). Borrar al final para no pisar Railway.
+RUN printf 'DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build?schema=public"\n' > .env \
+  && npm run build \
+  && rm -f .env
 
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
