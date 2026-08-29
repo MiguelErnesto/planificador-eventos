@@ -60,6 +60,7 @@ export async function listProjects() {
       id: p.id,
       name: p.name,
       eventDate: p.eventDate,
+      timezone: p.timezone,
       taskCount: p._count.tasks,
       startsAt,
       endsAt,

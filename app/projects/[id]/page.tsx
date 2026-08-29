@@ -21,6 +21,7 @@ export default async function ProjectPage({ params }: Props) {
       projectId={project.id}
       projectName={project.name}
       eventDate={project.eventDate.toISOString()}
+      timezone={project.timezone}
       today={cpm.today.toISOString()}
       baseDuration={cpm.workDurationDays}
       exceedsEventDate={cpm.exceedsEventDate}

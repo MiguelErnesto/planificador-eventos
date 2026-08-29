@@ -31,6 +31,12 @@ export function formatCalendarDate(
   return format(calendarDate(value), pattern, options);
 }
 
+/** `YYYY-MM-DD` for `<input type="date">`, using the UTC calendar day. */
+export function toDateInputValue(value: Date | string): string {
+  const { y, m, d } = utcYmd(value);
+  return `${String(y).padStart(4, "0")}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
 /** Persist a local calendar day as UTC midnight so the day does not shift. */
 export function toUtcDateIso(date: Date): string {
   return new Date(
@@ -60,6 +66,27 @@ export function toAbsoluteDate(day: number, anchor: Date): Date {
 export function defaultPlanningAnchor(eventDate: Date, lookbackDays = 180): Date {
   const { y, m, d } = utcYmd(eventDate);
   return new Date(Date.UTC(y, m, d - lookbackDays));
+}
+
+/** IANA zone of this runtime (browser = equipo; servidor = TZ del contenedor). */
+export function localTimeZone(): string {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz && isValidTimeZone(tz)) return tz;
+  } catch {
+    // ignore
+  }
+  return "Europe/Madrid";
+}
+
+export function isValidTimeZone(tz: string): boolean {
+  if (!tz || tz.length > 80) return false;
+  try {
+    Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Today's calendar date in a IANA timezone, stored as UTC midnight. */
