@@ -16,6 +16,8 @@ const display = Fraunces({
   subsets: ["latin"],
 });
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: APP_TITLE,
   description: APP_TAGLINE,
