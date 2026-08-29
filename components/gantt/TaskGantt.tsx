@@ -354,6 +354,9 @@ export function TaskGantt({
                   <div
                     role="slider"
                     aria-label={`Mover ${task.title}`}
+                    aria-valuenow={drag?.id === task.id ? drag.days : 0}
+                    aria-valuemin={-365}
+                    aria-valuemax={365}
                     tabIndex={0}
                     onMouseDown={(e) => {
                       e.preventDefault();

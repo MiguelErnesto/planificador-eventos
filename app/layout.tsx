@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Source_Sans_3, Fraunces } from "next/font/google";
+import Link from "next/link";
 import "./globals.css";
 import { getSiteSettings } from "@/lib/queries";
 import { APP_TITLE, APP_TAGLINE } from "@/lib/branding";
@@ -31,7 +32,7 @@ export default async function RootLayout({
       <body className={`${sans.variable} ${display.variable} antialiased`}>
         <header className="border-b border-border/80 bg-panel/80 backdrop-blur">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
-            <a href="/" className="group">
+            <Link href="/" className="group">
               <p
                 className="text-2xl tracking-tight text-accent-dark"
                 style={{ fontFamily: "var(--font-brand), serif" }}
@@ -39,7 +40,7 @@ export default async function RootLayout({
                 {title}
               </p>
               <p className="text-base text-muted">{tagline}</p>
-            </a>
+            </Link>
             <HeaderNav />
           </div>
         </header>
