@@ -7,13 +7,14 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
+COPY prisma ./prisma
 RUN npm ci
 
 COPY . .
 
 # Prisma exige DATABASE_URL al generar/compilar; Railway la pisa en runtime.
 ENV DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build?schema=public"
-RUN npx prisma generate && npm run build
+RUN npm run build
 
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
