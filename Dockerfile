@@ -12,9 +12,8 @@ RUN npm ci
 
 COPY . .
 
-# Prisma exige DATABASE_URL al generar/compilar; Railway la pisa en runtime.
-ENV DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build?schema=public"
-RUN npm run build
+# Solo en el build: no dejar ENV para que Railway inyecte DATABASE_URL al arrancar.
+RUN DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build?schema=public" npm run build
 
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
