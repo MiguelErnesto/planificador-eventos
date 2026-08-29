@@ -1,4 +1,4 @@
-name: CI
+name: CI: Añadir GitHub Actions en main (lint, test y build)
 
 on:
   push:
