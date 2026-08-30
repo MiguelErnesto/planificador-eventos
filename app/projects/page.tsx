@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { listProjects } from "@/lib/queries";
-import { NewProjectNameInput } from "@/components/NewProjectNameInput";
-import { LocalTimezoneInput } from "@/components/LocalTimezoneInput";
+import { NewProjectForm } from "@/components/NewProjectForm";
 import { ProjectListItem } from "@/components/ProjectListItem";
 import { createProject, deleteProject } from "@/lib/actions";
 
@@ -37,43 +36,18 @@ export default async function ProjectsPage() {
         </p>
       )}
 
-      <section className="rounded-2xl border border-border bg-panel px-4 py-3 shadow-sm">
-        <form
-          action={createProjectAction}
-          className="flex flex-col gap-2 sm:flex-row sm:items-end"
-        >
-          <label className="flex flex-1 flex-col gap-0.5 text-sm">
-            <span className="text-xs italic text-muted">Nuevo</span>
-            <NewProjectNameInput />
-          </label>
-          <label className="flex flex-col gap-0.5 text-sm">
-            <span className="text-xs italic text-muted">Fecha límite</span>
-            <input
-              type="date"
-              name="eventDate"
-              required
-              className="rounded-lg border border-border px-3 py-1.5 outline-none ring-accent focus:ring-2"
-            />
-          </label>
-          <LocalTimezoneInput />
-          <button
-            type="submit"
-            className="rounded-lg bg-accent px-4 py-1.5 font-medium text-white hover:bg-accent-dark"
-          >
-            Crear
-          </button>
-        </form>
-      </section>
+      <NewProjectForm
+        action={createProjectAction}
+        hasProjects={projects.length > 0}
+      />
 
       <section className="space-y-1">
-        <h2 className="text-lg font-semibold text-slate-800">Eventos / Tareas / Proyectos</h2>
+        <h2 className="text-lg font-semibold text-slate-800">
+          Eventos / Tareas / Proyectos
+        </h2>
         {projects.length === 0 && !dbError ? (
-          <p className="text-muted">
-            No hay proyectos. Crea uno o ejecuta{" "}
-            <code className="rounded bg-slate-100 px-1">
-              docker compose exec app npm run db:seed
-            </code>
-            .
+          <p className="text-sm text-muted">
+            Cuando crees un proyecto, aparecerá aquí.
           </p>
         ) : (
           <ul className="overflow-hidden rounded-2xl border border-border bg-panel shadow-sm">

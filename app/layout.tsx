@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Source_Sans_3, Fraunces } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
@@ -23,6 +23,11 @@ export const metadata: Metadata = {
   description: APP_TAGLINE,
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -33,15 +38,15 @@ export default async function RootLayout({
     <html lang="es">
       <body className={`${sans.variable} ${display.variable} antialiased`}>
         <header className="border-b border-border/80 bg-panel/80 backdrop-blur">
-          <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
-            <Link href="/" className="group">
+          <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <Link href="/" className="group min-w-0">
               <p
-                className="text-2xl tracking-tight text-accent-dark"
+                className="truncate text-xl tracking-tight text-accent-dark sm:text-2xl"
                 style={{ fontFamily: "var(--font-brand), serif" }}
               >
                 {title}
               </p>
-              <p className="text-base text-muted">{tagline}</p>
+              <p className="truncate text-sm text-muted sm:text-base">{tagline}</p>
             </Link>
             <HeaderNav />
           </div>

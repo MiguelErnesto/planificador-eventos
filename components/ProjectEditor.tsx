@@ -6,6 +6,7 @@ import { es } from "date-fns/locale";
 import { TaskFlow, type FlowTask, type FlowEdge } from "@/components/graph/TaskFlow";
 import { TaskGantt } from "@/components/gantt/TaskGantt";
 import { ProjectMetaForm } from "@/components/ProjectMetaForm";
+import { BottomSheet } from "@/components/BottomSheet";
 import {
   createTask,
   deleteDependency,
@@ -14,6 +15,7 @@ import {
 } from "@/lib/actions";
 import { calendarDate, addCalendarDays } from "@/lib/dates";
 import { eventProgressPct } from "@/lib/progress";
+import { useMediaQuery } from "@/lib/use-media-query";
 
 type Task = FlowTask & {
   earliestStart: Date | string | null;
@@ -134,6 +136,151 @@ function TaskProgressSlider({
   );
 }
 
+function TaskDetailBody({
+  selected,
+  tasks,
+  edges,
+  startTransition,
+  onDeleted,
+}: {
+  selected: Task;
+  tasks: Task[];
+  edges: Edge[];
+  startTransition: (fn: () => void | Promise<void>) => void;
+  onDeleted: () => void;
+}) {
+  return (
+    <div className="space-y-3 text-sm">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-medium uppercase tracking-wide text-muted">
+          Detalle
+        </span>
+        <button
+          type="button"
+          className="rounded-lg border border-border px-2.5 py-1.5 text-xs text-red-600 hover:bg-red-50"
+          onClick={() =>
+            startTransition(async () => {
+              await deleteTask(selected.id);
+              onDeleted();
+            })
+          }
+        >
+          Eliminar tarea
+        </button>
+      </div>
+      <TaskTitleInput
+        taskId={selected.id}
+        title={selected.title}
+        onCommit={(nextTitle) =>
+          startTransition(async () => {
+            await updateTask(selected.id, { title: nextTitle });
+          })
+        }
+      />
+      <p>
+        Duración:{" "}
+        <input
+          type="number"
+          min={1}
+          defaultValue={selected.durationDays}
+          key={selected.id + selected.durationDays}
+          className="w-20 rounded border border-border px-2 py-1"
+          onBlur={(e) => {
+            const v = Number(e.target.value);
+            if (v >= 1 && v !== selected.durationDays) {
+              startTransition(() => updateTask(selected.id, { durationDays: v }));
+            }
+          }}
+        />{" "}
+        días
+      </p>
+      <TaskProgressSlider
+        taskId={selected.id}
+        progressPct={selected.progressPct}
+        onCommit={(pct) =>
+          startTransition(() => updateTask(selected.id, { progressPct: pct }))
+        }
+      />
+      <TaskMarginCopy
+        slackDays={selected.slackDays}
+        isCritical={selected.isCritical}
+      />
+      {selected.earliestStart && selected.earliestFinish && (
+        <div className="space-y-0.5 text-muted">
+          <p>
+            Más temprano:{" "}
+            {format(calendarDate(selected.earliestStart), "d MMM", {
+              locale: es,
+            })}{" "}
+            →{" "}
+            {format(calendarDate(selected.earliestFinish), "d MMM", {
+              locale: es,
+            })}
+          </p>
+          {selected.latestStart && selected.latestFinish && (
+            <p>
+              Más tarde:{" "}
+              {format(calendarDate(selected.latestStart), "d MMM", {
+                locale: es,
+              })}{" "}
+              →{" "}
+              {format(calendarDate(selected.latestFinish), "d MMM", {
+                locale: es,
+              })}
+            </p>
+          )}
+        </div>
+      )}
+      <div>
+        <p className="mb-1 text-muted">Predecesores</p>
+        <ul className="space-y-1">
+          {edges
+            .filter((e) => e.toTaskId === selected.id)
+            .map((e) => {
+              const from = tasks.find((t) => t.id === e.fromTaskId);
+              return (
+                <li
+                  key={e.id}
+                  className="flex items-center justify-between gap-2"
+                >
+                  <span>
+                    {from?.title ?? e.fromTaskId}{" "}
+                    <span className="text-muted">{e.type}</span>
+                  </span>
+                  <button
+                    type="button"
+                    className="text-xs text-red-600"
+                    onClick={() =>
+                      startTransition(() => deleteDependency(e.id))
+                    }
+                  >
+                    Quitar
+                  </button>
+                </li>
+              );
+            })}
+        </ul>
+      </div>
+      <div>
+        <p className="mb-1 text-muted">Sucesores</p>
+        <ul className="list-disc pl-4">
+          {edges
+            .filter((e) => e.fromTaskId === selected.id)
+            .map((e) => {
+              const to = tasks.find((t) => t.id === e.toTaskId);
+              return (
+                <li key={e.id}>
+                  {to?.title ?? e.toTaskId}{" "}
+                  <span className="text-muted">{e.type}</span>
+                </li>
+              );
+            })}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 export function ProjectEditor({
   projectId,
   projectName,
@@ -162,7 +309,11 @@ export function ProjectEditor({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [connectorSelected, setConnectorSelected] = useState(false);
   const [newTaskOpen, setNewTaskOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const isLg = useMediaQuery("(min-width: 1024px)");
+  const [graphOverride, setGraphOverride] = useState<boolean | null>(null);
+  const graphOpen = graphOverride ?? isLg ?? false;
 
   const selected = connectorSelected
     ? null
@@ -197,279 +348,212 @@ export function ProjectEditor({
     };
   }, [tasks, baseDuration, today]);
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <ProjectMetaForm
-            projectId={projectId}
-            name={projectName}
-            eventDate={eventDate}
-            timezone={timezone}
-            layout="header"
+  function selectTask(id: string | null) {
+    setSelectedId(id);
+    setConnectorSelected(false);
+  }
+
+  const newTaskPanel = (
+    <div className="rounded-2xl border border-border bg-panel shadow-sm">
+      <button
+        type="button"
+        aria-expanded={newTaskOpen}
+        onClick={() => setNewTaskOpen((open) => !open)}
+        className="flex w-full items-center justify-between px-4 py-3 text-left font-semibold"
+      >
+        Nueva tarea
+        <span
+          aria-hidden
+          className={`text-muted transition-transform ${newTaskOpen ? "rotate-180" : ""}`}
+        >
+          ▾
+        </span>
+      </button>
+      {newTaskOpen && (
+        <form
+          action={(fd) => {
+            startTransition(async () => {
+              const id = await createTask(projectId, fd);
+              selectTask(id);
+            });
+          }}
+          className="space-y-2 border-t border-border px-4 py-3"
+        >
+          <input
+            name="title"
+            required
+            placeholder="Título"
+            className="w-full rounded-lg border border-border px-3 py-2 text-sm"
           />
-          <div className="mt-2 text-sm text-muted">
-            <p>
-              Plan desde hoy:{" "}
-              {format(calendarDate(today), "d MMMM yyyy", { locale: es })}
-            </p>
-            <p>
-              Inicia:{" "}
-              {format(planRange.startDate, "d MMMM yyyy", { locale: es })}
-            </p>
-            <p>
-              Termina:{" "}
-              {format(planRange.endDate, "d MMMM yyyy", { locale: es })}
-            </p>
-            <p>
-              Duración: {planRange.durationDays}{" "}
-              {planRange.durationDays === 1 ? "día" : "días"}
-              {pending ? " · guardando…" : ""}
-            </p>
-            <p>Progreso: {planRange.progressPct}%</p>
-            <p
+          <input
+            name="durationDays"
+            type="number"
+            min={1}
+            required
+            placeholder="Días de duración"
+            className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+          />
+          <button
+            type="submit"
+            className="w-full rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-dark"
+          >
+            Añadir
+          </button>
+        </form>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="space-y-4 sm:space-y-6">
+      <div>
+        <ProjectMetaForm
+          projectId={projectId}
+          name={projectName}
+          eventDate={eventDate}
+          timezone={timezone}
+          layout="header"
+        />
+        <div className="mt-2 text-sm text-muted">
+          <p>
+            {format(planRange.startDate, "d MMM", { locale: es })} →{" "}
+            {format(planRange.endDate, "d MMM", { locale: es })} ·{" "}
+            {planRange.durationDays}{" "}
+            {planRange.durationDays === 1 ? "día" : "días"} ·{" "}
+            {planRange.progressPct}%
+            <span
               className={
-                Math.round(planSlackDays) <= 2 ? "text-critical font-medium" : undefined
+                Math.round(planSlackDays) <= 2
+                  ? "text-critical font-medium"
+                  : undefined
               }
             >
-              Holgura:{" "}
+              {" "}
+              · Holgura{" "}
               {Math.round(planSlackDays) < 0 ? "−" : ""}
               {daysPhrase(planSlackDays)}
-            </p>
-            {exceedsEventDate && (
-              <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-                El plan no llega a la fecha del evento
-                {overrunDays > 0
-                  ? ` (se pasa ${overrunDays} ${overrunDays === 1 ? "día" : "días"}).`
-                  : "."}
+            </span>
+            {pending ? " · guardando…" : ""}
+          </p>
+          <button
+            type="button"
+            onClick={() => setSummaryOpen((v) => !v)}
+            className="mt-1 text-xs text-accent-dark hover:underline"
+          >
+            {summaryOpen ? "Ocultar resumen" : "Ver resumen"}
+          </button>
+          {summaryOpen && (
+            <div className="mt-1 space-y-0.5 text-xs">
+              <p>
+                Plan desde hoy:{" "}
+                {format(calendarDate(today), "d MMMM yyyy", { locale: es })}
               </p>
-            )}
-          </div>
+              <p>
+                Inicia:{" "}
+                {format(planRange.startDate, "d MMMM yyyy", { locale: es })}
+              </p>
+              <p>
+                Termina:{" "}
+                {format(planRange.endDate, "d MMMM yyyy", { locale: es })}
+              </p>
+            </div>
+          )}
+          {exceedsEventDate && (
+            <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+              El plan no llega a la fecha del evento
+              {overrunDays > 0
+                ? ` (se pasa ${overrunDays} ${overrunDays === 1 ? "día" : "días"}).`
+                : "."}
+            </p>
+          )}
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
-        <div className="min-w-0">
-          <TaskFlow
-            projectId={projectId}
-            tasks={tasks}
-            edges={edges}
-            selectedTaskId={selectedId}
-            onSelectTask={(id) => {
-              setSelectedId(id);
-              setConnectorSelected(false);
-            }}
-            onSelectConnector={(selected) => {
-              setConnectorSelected(selected);
-              if (selected) {
-                setSelectedId(null);
-                setNewTaskOpen(false);
-              }
-            }}
-          />
-        </div>
-
-        <aside className="space-y-4">
-          <div className="rounded-2xl border border-border bg-panel shadow-sm">
-            <button
-              type="button"
-              aria-expanded={newTaskOpen}
-              onClick={() => setNewTaskOpen((open) => !open)}
-              className="flex w-full items-center justify-between px-4 py-3 text-left font-semibold"
-            >
-              Nueva tarea
-              <span
-                aria-hidden
-                className={`text-muted transition-transform ${newTaskOpen ? "rotate-180" : ""}`}
-              >
-                ▾
-              </span>
-            </button>
-            {newTaskOpen && (
-              <form
-                action={(fd) => {
-                  startTransition(async () => {
-                    const id = await createTask(projectId, fd);
-                    setSelectedId(id);
-                    setConnectorSelected(false);
-                  });
-                }}
-                className="space-y-2 border-t border-border px-4 py-3"
-              >
-                <input
-                  name="title"
-                  required
-                  placeholder="Título"
-                  className="w-full rounded-lg border border-border px-3 py-2 text-sm"
-                />
-                <input
-                  name="durationDays"
-                  type="number"
-                  min={1}
-                  required
-                  placeholder="Días de duración"
-                  className="w-full rounded-lg border border-border px-3 py-2 text-sm"
-                />
-                <button
-                  type="submit"
-                  className="w-full rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-dark"
-                >
-                  Añadir
-                </button>
-              </form>
-            )}
-          </div>
-
-          <div className="rounded-2xl border border-border bg-panel p-4 shadow-sm">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="font-semibold">Detalle</h2>
-              {selected && (
-                <button
-                  type="button"
-                  className="rounded-lg border border-border px-2.5 py-1 text-xs text-red-600 hover:bg-red-50"
-                  onClick={() =>
-                    startTransition(async () => {
-                      await deleteTask(selected.id);
-                      setSelectedId(null);
-                    })
-                  }
-                >
-                  Eliminar tarea
-                </button>
-              )}
-            </div>
-            {!selected ? (
-              <p className="text-sm text-muted">Selecciona una tarea</p>
-            ) : (
-              <div className="space-y-3 text-sm">
-                <TaskTitleInput
-                  taskId={selected.id}
-                  title={selected.title}
-                  onCommit={(nextTitle) =>
-                    startTransition(async () => {
-                      await updateTask(selected.id, { title: nextTitle });
-                    })
-                  }
-                />
-                <p>
-                  Duración:{" "}
-                  <input
-                    type="number"
-                    min={1}
-                    defaultValue={selected.durationDays}
-                    key={selected.id + selected.durationDays}
-                    className="w-20 rounded border border-border px-2 py-1"
-                    onBlur={(e) => {
-                      const v = Number(e.target.value);
-                      if (v >= 1 && v !== selected.durationDays) {
-                        startTransition(() => updateTask(selected.id, { durationDays: v }));
-                      }
-                    }}
-                  />{" "}
-                  días
-                </p>
-                <TaskProgressSlider
-                  taskId={selected.id}
-                  progressPct={selected.progressPct}
-                  onCommit={(pct) =>
-                    startTransition(() =>
-                      updateTask(selected.id, { progressPct: pct }),
-                    )
-                  }
-                />
-                <TaskMarginCopy
-                  slackDays={selected.slackDays}
-                  isCritical={selected.isCritical}
-                />
-                {selected.earliestStart && selected.earliestFinish && (
-                  <div className="space-y-0.5 text-muted">
-                    <p>
-                      Más temprano:{" "}
-                      {format(calendarDate(selected.earliestStart), "d MMM", {
-                        locale: es,
-                      })}{" "}
-                      →{" "}
-                      {format(calendarDate(selected.earliestFinish), "d MMM", {
-                        locale: es,
-                      })}
-                    </p>
-                    {selected.latestStart && selected.latestFinish && (
-                      <p>
-                        Más tarde:{" "}
-                        {format(calendarDate(selected.latestStart), "d MMM", {
-                          locale: es,
-                        })}{" "}
-                        →{" "}
-                        {format(calendarDate(selected.latestFinish), "d MMM", {
-                          locale: es,
-                        })}
-                      </p>
-                    )}
-                  </div>
-                )}
-                <div>
-                  <p className="mb-1 text-muted">Predecesores</p>
-                  <ul className="space-y-1">
-                    {edges
-                      .filter((e) => e.toTaskId === selected.id)
-                      .map((e) => {
-                        const from = tasks.find((t) => t.id === e.fromTaskId);
-                        return (
-                          <li
-                            key={e.id}
-                            className="flex items-center justify-between gap-2"
-                          >
-                            <span>
-                              {from?.title ?? e.fromTaskId}{" "}
-                              <span className="text-muted">{e.type}</span>
-                            </span>
-                            <button
-                              type="button"
-                              className="text-xs text-red-600"
-                              onClick={() =>
-                                startTransition(() => deleteDependency(e.id))
-                              }
-                            >
-                              Quitar
-                            </button>
-                          </li>
-                        );
-                      })}
-                  </ul>
-                </div>
-                <div>
-                  <p className="mb-1 text-muted">Sucesores</p>
-                  <ul className="list-disc pl-4">
-                    {edges
-                      .filter((e) => e.fromTaskId === selected.id)
-                      .map((e) => {
-                        const to = tasks.find((t) => t.id === e.toTaskId);
-                        return (
-                          <li key={e.id}>
-                            {to?.title ?? e.toTaskId}{" "}
-                            <span className="text-muted">{e.type}</span>
-                          </li>
-                        );
-                      })}
-                  </ul>
-                </div>
-              </div>
-            )}
-          </div>
-        </aside>
-
-        <div className="min-w-0 lg:col-span-2">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-[1fr_280px]">
+        {/* Gantt first on mobile */}
+        <div className="order-1 min-w-0 lg:order-3 lg:col-span-2">
           <TaskGantt
             tasks={tasks}
             eventDate={eventDate}
             today={today}
-            onSelectTask={(id) => {
-              setSelectedId(id);
-              setConnectorSelected(false);
-            }}
+            onSelectTask={(id) => selectTask(id)}
           />
         </div>
+
+        <div className="order-2 min-w-0 rounded-2xl border border-border bg-panel shadow-sm lg:order-1">
+          <button
+            type="button"
+            aria-expanded={graphOpen}
+            onClick={() => setGraphOverride(!graphOpen)}
+            className="flex w-full items-center justify-between px-4 py-3 text-left font-semibold"
+          >
+            Grafo de tareas
+            <span
+              aria-hidden
+              className={`text-muted transition-transform ${graphOpen ? "rotate-180" : ""}`}
+            >
+              ▾
+            </span>
+          </button>
+          {graphOpen && (
+            <div className="border-t border-border p-2 sm:p-3">
+              <TaskFlow
+                projectId={projectId}
+                tasks={tasks}
+                edges={edges}
+                selectedTaskId={selectedId}
+                onSelectTask={(id) => selectTask(id)}
+                onSelectConnector={(selectedConn) => {
+                  setConnectorSelected(selectedConn);
+                  if (selectedConn) {
+                    setSelectedId(null);
+                    setNewTaskOpen(false);
+                  }
+                }}
+              />
+            </div>
+          )}
+        </div>
+
+        <aside className="order-3 space-y-4 lg:order-2">
+          {newTaskPanel}
+
+          {/* Desktop detail panel */}
+          <div className="hidden rounded-2xl border border-border bg-panel p-4 shadow-sm lg:block">
+            {!selected ? (
+              <>
+                <h2 className="mb-3 font-semibold">Detalle</h2>
+                <p className="text-sm text-muted">Selecciona una tarea</p>
+              </>
+            ) : (
+              <TaskDetailBody
+                selected={selected}
+                tasks={tasks}
+                edges={edges}
+                startTransition={startTransition}
+                onDeleted={() => selectTask(null)}
+              />
+            )}
+          </div>
+        </aside>
       </div>
+
+      {/* Mobile detail bottom sheet */}
+      <BottomSheet
+        open={Boolean(selected) && isLg === false}
+        title={selected?.title ?? "Detalle"}
+        onClose={() => selectTask(null)}
+      >
+        {selected && (
+          <TaskDetailBody
+            selected={selected}
+            tasks={tasks}
+            edges={edges}
+            startTransition={startTransition}
+            onDeleted={() => selectTask(null)}
+          />
+        )}
+      </BottomSheet>
     </div>
   );
 }

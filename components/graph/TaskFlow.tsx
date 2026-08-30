@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   ReactFlow,
   Background,
@@ -30,6 +30,7 @@ import {
   handlesForType,
 } from "@/lib/dependency";
 import type { DependencyType } from "@/lib/cpm";
+import { useMediaQuery } from "@/lib/use-media-query";
 
 export type FlowTask = {
   id: string;
@@ -224,6 +225,8 @@ const NODE_WIDTH = 180;
 const CANVAS_PAD = 40;
 const MINIMAP_OFFSET_X = 140;
 const MINIMAP_OFFSET_Y = 100;
+const PAD_OFFSET_X = 24;
+const PAD_OFFSET_Y = 24;
 
 export function TaskFlow({
   projectId,
@@ -240,6 +243,11 @@ export function TaskFlow({
   onSelectTask: (id: string | null) => void;
   onSelectConnector: (selected: boolean) => void;
 }) {
+  const showMiniMap = useMediaQuery("(min-width: 768px)") ?? false;
+  const flowRef = useRef<ReactFlowInstance | null>(null);
+  const offsetX = showMiniMap ? MINIMAP_OFFSET_X : PAD_OFFSET_X;
+  const offsetY = showMiniMap ? MINIMAP_OFFSET_Y : PAD_OFFSET_Y;
+
   const initialNodes: Node[] = useMemo(
     () =>
       tasks.map((t) => ({
@@ -292,14 +300,18 @@ export function TaskFlow({
   }, [tasks]);
 
   const onInit = useCallback((instance: ReactFlowInstance) => {
-    const ns = instance.getNodes();
-    const minX = ns.length ? Math.min(...ns.map((n) => n.position.x)) : 0;
-    const minY = ns.length ? Math.min(...ns.map((n) => n.position.y)) : 0;
-    instance.setViewport({
-      x: -minX + MINIMAP_OFFSET_X,
-      y: -minY + MINIMAP_OFFSET_Y,
-      zoom: 1,
+    flowRef.current = instance;
+    requestAnimationFrame(() => {
+      instance.fitView({ padding: 0.15, duration: 0 });
     });
+  }, []);
+
+  useEffect(() => {
+    const onResize = () => {
+      flowRef.current?.fitView({ padding: 0.15, duration: 0 });
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, []);
 
   const onConnect = useCallback(
@@ -358,7 +370,7 @@ export function TaskFlow({
   );
 
   return (
-    <div className="h-[380px] w-full overflow-x-auto overflow-y-hidden rounded-2xl border border-border bg-slate-50">
+    <div className="h-[min(380px,50dvh)] w-full overflow-x-auto overflow-y-hidden rounded-2xl border border-border bg-slate-50">
       <div className="h-full min-w-full" style={{ width: canvasWidth ?? "100%" }}>
           <ReactFlow
             className="[&_.react-flow__edgelabel-renderer]:z-[1001]"
@@ -393,8 +405,8 @@ export function TaskFlow({
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             defaultViewport={{
-              x: MINIMAP_OFFSET_X,
-              y: MINIMAP_OFFSET_Y,
+              x: offsetX,
+              y: offsetY,
               zoom: 1,
             }}
             zoomOnScroll={false}
@@ -403,12 +415,16 @@ export function TaskFlow({
           >
             <Background gap={16} color="#e2e8f0" />
             <Controls />
-            <MiniMap
-              position="top-left"
-              style={{ width: 120, height: 80 }}
-              nodeColor={(n) => ((n.data as FlowTask).isCritical ? "#dc2626" : "#0d9488")}
-              maskColor="rgb(248,250,252,0.7)"
-            />
+            {showMiniMap && (
+              <MiniMap
+                position="top-left"
+                style={{ width: 120, height: 80 }}
+                nodeColor={(n) =>
+                  (n.data as FlowTask).isCritical ? "#dc2626" : "#0d9488"
+                }
+                maskColor="rgb(248,250,252,0.7)"
+              />
+            )}
           </ReactFlow>
         </div>
     </div>

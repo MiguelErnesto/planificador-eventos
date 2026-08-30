@@ -80,7 +80,7 @@ export function ProjectMetaForm({
       aria-label="Nombre del proyecto"
       className={
         layout === "header"
-          ? "w-full rounded-lg bg-transparent px-1 -mx-1 text-3xl text-slate-900 outline-none ring-accent focus:ring-2"
+          ? "w-full rounded-lg bg-transparent px-1 -mx-1 text-xl text-slate-900 outline-none ring-accent focus:ring-2 sm:text-2xl lg:text-3xl"
           : `${fieldClass} w-full`
       }
       style={
@@ -104,14 +104,17 @@ export function ProjectMetaForm({
   );
 
   const timezoneField = (
-    <div className="flex flex-col gap-0.5 text-sm">
+    <div className="flex min-w-0 flex-col gap-0.5 text-sm">
       <span className="text-xs italic text-muted">Zona horaria</span>
-      <p className="py-1.5 text-sm text-slate-800">{timezone}</p>
+      <p className="truncate py-1.5 text-sm text-slate-800" title={timezone}>
+        {timezone}
+      </p>
       {deviceTz && deviceTz !== timezone && (
         <button
           type="button"
           onClick={() => setTimezone(deviceTz)}
-          className="text-left text-xs text-accent-dark hover:underline"
+          className="break-all text-left text-xs text-accent-dark hover:underline"
+          title={deviceTz}
         >
           Usar la de este equipo ({deviceTz})
         </button>

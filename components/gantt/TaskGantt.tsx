@@ -7,6 +7,7 @@ import { ControlButton } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { updateTask } from "@/lib/actions";
 import { calendarDate, toUtcDateIso, addCalendarDays } from "@/lib/dates";
+import { useGanttLabelWidth } from "@/lib/use-media-query";
 
 export type GanttTask = {
   id: string;
@@ -22,11 +23,12 @@ export type GanttTask = {
 };
 
 const DAY_PX = 28;
-const LABEL_W = 280;
-const ZOOM_MIN = 0.4;
+const ZOOM_MIN = 0.35;
 const ZOOM_MAX = 2.5;
 const ZOOM_STEP = 0.2;
 const LOOKBACK_DAYS = 21;
+/** On narrow screens, fit ~this many days instead of the whole plan. */
+const MOBILE_VISIBLE_DAYS = 18;
 
 function PlusIcon() {
   return (
@@ -81,6 +83,9 @@ export function TaskGantt({
 }) {
   const event = calendarDate(eventDate);
   const todayDate = calendarDate(today);
+  const labelW = useGanttLabelWidth();
+  const labelWRef = useRef(labelW);
+  labelWRef.current = labelW;
   const wrapRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const [locked, setLocked] = useState(false);
@@ -88,7 +93,6 @@ export function TaskGantt({
   const dragStartX = useRef(0);
   const dragDaysRef = useRef(0);
   const dayPxRef = useRef(DAY_PX);
-  const didInitScroll = useRef(false);
 
   const { minDay, maxDay, rows } = useMemo(() => {
     const starts = tasks
@@ -124,14 +128,6 @@ export function TaskGantt({
     setDrag(null);
   }, [startsKey]);
 
-  useEffect(() => {
-    const el = wrapRef.current;
-    if (!el || didInitScroll.current) return;
-    const pastVisiblePx = 3 * dayPx;
-    el.scrollLeft = Math.max(0, todayOffset * dayPx - pastVisiblePx);
-    didInitScroll.current = true;
-  }, [todayOffset, dayPx]);
-
   const days = useMemo(
     () => Array.from({ length: totalDays }, (_, i) => addCalendarDays(minDay, i)),
     [minDay, totalDays],
@@ -154,12 +150,38 @@ export function TaskGantt({
     return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, value));
   }
 
+  function daysToFit(clientWidth: number) {
+    const narrow = clientWidth < 768;
+    if (!narrow) return totalDays;
+    return Math.min(totalDays, MOBILE_VISIBLE_DAYS);
+  }
+
   function fitView() {
     const el = wrapRef.current;
     if (!el) return;
-    const available = Math.max(el.clientWidth - LABEL_W, DAY_PX);
-    setZoom(clampZoom(available / (totalDays * DAY_PX)));
+    const available = Math.max(el.clientWidth - labelWRef.current, DAY_PX);
+    const nextZoom = clampZoom(
+      available / (daysToFit(el.clientWidth) * DAY_PX),
+    );
+    setZoom(nextZoom);
+    const pastVisiblePx = 2 * DAY_PX * nextZoom;
+    el.scrollLeft = Math.max(
+      0,
+      todayOffset * (DAY_PX * nextZoom) - pastVisiblePx,
+    );
   }
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const available = Math.max(el.clientWidth - labelW, DAY_PX);
+    const nextZoom = clampZoom(
+      available / (daysToFit(el.clientWidth) * DAY_PX),
+    );
+    setZoom(nextZoom);
+    const pastVisiblePx = 2 * DAY_PX * nextZoom;
+    el.scrollLeft = Math.max(0, todayOffset * (DAY_PX * nextZoom) - pastVisiblePx);
+  }, [labelW, totalDays, todayOffset]);
 
   async function commitShift(task: GanttTask, deltaDays: number) {
     if (!task.earliestStart || deltaDays === 0) return;
@@ -183,13 +205,13 @@ export function TaskGantt({
         drag ? "select-none" : ""
       }`}
     >
-      <div className="min-w-full" style={{ width: LABEL_W + totalDays * dayPx }}>
+      <div className="min-w-full" style={{ width: labelW + totalDays * dayPx }}>
         <div className="sticky top-0 z-20 flex items-stretch border-b border-border bg-slate-50 text-xs text-muted">
           <div
-            className="sticky left-0 z-30 flex items-center justify-between gap-2 bg-slate-50 px-3"
-            style={{ width: LABEL_W }}
+            className="sticky left-0 z-30 flex items-center justify-between gap-1 bg-slate-50 px-2 sm:gap-2 sm:px-3"
+            style={{ width: labelW }}
           >
-            <span className="shrink-0 text-base font-bold text-slate-900">
+            <span className="hidden min-w-0 truncate text-sm font-bold text-slate-900 sm:inline sm:text-base">
               Tareas
             </span>
             <span className="inline-flex shrink-0">
@@ -318,8 +340,8 @@ export function TaskGantt({
                 <button
                   type="button"
                   onClick={() => onSelectTask(task.id)}
-                  className="sticky left-0 z-10 truncate bg-panel px-3 py-1 text-left text-sm hover:text-accent-dark"
-                  style={{ width: LABEL_W }}
+                  className="sticky left-0 z-10 truncate bg-panel px-2 py-1 text-left text-sm hover:text-accent-dark sm:px-3"
+                  style={{ width: labelW }}
                 >
                   {task.title}
                 </button>
@@ -358,16 +380,20 @@ export function TaskGantt({
                     aria-valuemin={-365}
                     aria-valuemax={365}
                     tabIndex={0}
-                    onMouseDown={(e) => {
+                    onPointerDown={(e) => {
+                      if (e.button !== 0 && e.pointerType === "mouse") return;
                       e.preventDefault();
                       if (!interactive) {
                         onSelectTask(task.id);
                         return;
                       }
+                      const target = e.currentTarget;
+                      target.setPointerCapture(e.pointerId);
                       dragStartX.current = e.clientX;
                       dragDaysRef.current = 0;
                       setDrag({ id: task.id, days: 0 });
-                      const onMove = (ev: MouseEvent) => {
+
+                      const onMove = (ev: PointerEvent) => {
                         let days = Math.round(
                           (ev.clientX - dragStartX.current) / dayPxRef.current,
                         );
@@ -382,9 +408,11 @@ export function TaskGantt({
                         dragDaysRef.current = days;
                         setDrag({ id: task.id, days });
                       };
-                      const onUp = () => {
-                        window.removeEventListener("mousemove", onMove);
-                        window.removeEventListener("mouseup", onUp);
+                      const onUp = (ev: PointerEvent) => {
+                        target.releasePointerCapture(ev.pointerId);
+                        target.removeEventListener("pointermove", onMove);
+                        target.removeEventListener("pointerup", onUp);
+                        target.removeEventListener("pointercancel", onUp);
                         const days = dragDaysRef.current;
                         onSelectTask(task.id);
                         if (days === 0) {
@@ -393,10 +421,11 @@ export function TaskGantt({
                         }
                         void commitShift(task, days);
                       };
-                      window.addEventListener("mousemove", onMove);
-                      window.addEventListener("mouseup", onUp);
+                      target.addEventListener("pointermove", onMove);
+                      target.addEventListener("pointerup", onUp);
+                      target.addEventListener("pointercancel", onUp);
                     }}
-                    className={`absolute top-1 h-7 overflow-hidden rounded-md text-[10px] leading-7 text-white ${
+                    className={`absolute top-1 h-7 touch-none overflow-hidden rounded-md text-[10px] leading-7 text-white ${
                       interactive
                         ? "cursor-grab active:cursor-grabbing"
                         : "cursor-default"

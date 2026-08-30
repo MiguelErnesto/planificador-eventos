@@ -30,9 +30,10 @@ export function ProjectListItem({
   onDelete: (formData: FormData) => void | Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   return (
-    <li className="relative flex flex-col gap-2 overflow-hidden border-b-[3px] border-double border-border px-4 py-2 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
+    <li className="relative flex flex-col gap-2 overflow-hidden border-b-[3px] border-double border-border px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-y-0 left-0 bg-accent/25"
@@ -59,32 +60,41 @@ export function ProjectListItem({
             className="absolute inset-0 z-0"
             aria-label={`Abrir ${name}`}
           />
-          <div className="pointer-events-none relative z-10">
-            <p className="text-base font-medium text-slate-900">{name}</p>
-            <p className="text-xs text-muted">
-              Fecha límite:{" "}
-              {formatCalendarDate(eventDate, "d MMMM yyyy", { locale: es })}{" "}
-              - Inicia:{" "}
-              {formatCalendarDate(startsAt, "d MMMM yyyy", { locale: es })}{" "}
-              - Termina:{" "}
-              {formatCalendarDate(endsAt, "d MMMM yyyy", { locale: es })}{" "}
-              - Duración: {durationDays}{" "}
-              {durationDays === 1 ? "día" : "días"} - Progreso Total:{" "}
-              {progressPct}% - {taskCount}{" "}
+          <div className="pointer-events-none relative z-10 min-w-0 flex-1">
+            <p className="truncate text-base font-medium text-slate-900">{name}</p>
+            <p className="mt-0.5 text-xs text-muted">
+              {formatCalendarDate(eventDate, "d MMM yyyy", { locale: es })} ·{" "}
+              {progressPct}% · {taskCount}{" "}
               {taskCount === 1 ? "tarea" : "tareas"}
             </p>
+            <p
+              className={`mt-0.5 text-xs text-muted ${
+                expanded ? "block" : "hidden sm:block"
+              }`}
+            >
+              {formatCalendarDate(startsAt, "d MMM", { locale: es })} →{" "}
+              {formatCalendarDate(endsAt, "d MMM", { locale: es })} ·{" "}
+              {durationDays} {durationDays === 1 ? "día" : "días"}
+            </p>
           </div>
-          <div className="relative z-10 flex gap-2">
+          <div className="relative z-10 flex shrink-0 flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="rounded-lg border border-border px-3 py-2 text-xs hover:border-accent hover:text-accent-dark sm:hidden"
+            >
+              {expanded ? "Menos" : "Más"}
+            </button>
             <Link
               href={`/projects/${id}`}
-              className="rounded-lg border border-border px-2.5 py-1 text-xs hover:border-accent hover:text-accent-dark"
+              className="rounded-lg border border-border px-3 py-2 text-xs hover:border-accent hover:text-accent-dark"
             >
               Abrir
             </Link>
             <button
               type="button"
               onClick={() => setEditing(true)}
-              className="rounded-lg border border-border px-2.5 py-1 text-xs hover:border-accent hover:text-accent-dark"
+              className="rounded-lg border border-border px-3 py-2 text-xs hover:border-accent hover:text-accent-dark"
             >
               Editar
             </button>
@@ -92,7 +102,7 @@ export function ProjectListItem({
               <input type="hidden" name="projectId" value={id} />
               <button
                 type="submit"
-                className="rounded-lg border border-border px-2.5 py-1 text-xs text-red-600 hover:bg-red-50"
+                className="rounded-lg border border-border px-3 py-2 text-xs text-red-600 hover:bg-red-50"
               >
                 Eliminar
               </button>

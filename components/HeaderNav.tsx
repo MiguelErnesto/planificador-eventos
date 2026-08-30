@@ -3,22 +3,25 @@
 import Link from "next/link";
 
 const linkClass =
-  "rounded-lg border border-border bg-transparent px-2.5 py-1 font-bold hover:bg-slate-100 hover:text-accent-dark";
+  "rounded-lg border border-border bg-transparent px-3 py-2 font-bold hover:bg-slate-100 hover:text-accent-dark";
 
 export function HeaderNav() {
   return (
-    <nav className="flex gap-4 text-sm text-muted">
+    <nav className="flex shrink-0 gap-2 text-sm text-muted sm:gap-4">
       <Link
         href="/projects#nuevo"
         className={linkClass}
         onClick={(event) => {
           if (window.location.pathname !== "/projects") return;
+          event.preventDefault();
           if (window.location.hash === "#nuevo") {
-            event.preventDefault();
+            window.dispatchEvent(new Event("open-nuevo"));
+            requestAnimationFrame(() => {
+              document.getElementById("nuevo")?.focus();
+            });
+            return;
           }
-          requestAnimationFrame(() => {
-            document.getElementById("nuevo")?.focus();
-          });
+          window.location.hash = "nuevo";
         }}
       >
         Nuevo
