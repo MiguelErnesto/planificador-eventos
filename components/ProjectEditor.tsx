@@ -13,7 +13,7 @@ import {
   deleteTask,
   updateTask,
 } from "@/lib/actions";
-import { calendarDate, addCalendarDays } from "@/lib/dates";
+import { calendarDate, addCalendarDays, formatCalendarDate } from "@/lib/dates";
 import { eventProgressPct } from "@/lib/progress";
 import { useMediaQuery } from "@/lib/use-media-query";
 
@@ -310,8 +310,10 @@ export function ProjectEditor({
   const [connectorSelected, setConnectorSelected] = useState(false);
   const [newTaskOpen, setNewTaskOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [editingMeta, setEditingMeta] = useState(false);
   const [pending, startTransition] = useTransition();
   const isLg = useMediaQuery("(min-width: 1024px)");
+  const compactHeader = isLg !== true;
   const [graphOverride, setGraphOverride] = useState<boolean | null>(null);
   const graphOpen = graphOverride ?? isLg ?? false;
 
@@ -407,13 +409,51 @@ export function ProjectEditor({
   return (
     <div className="space-y-4 sm:space-y-6">
       <div>
-        <ProjectMetaForm
-          projectId={projectId}
-          name={projectName}
-          eventDate={eventDate}
-          timezone={timezone}
-          layout="header"
-        />
+        {compactHeader ? (
+          editingMeta ? (
+            <ProjectMetaForm
+              projectId={projectId}
+              name={projectName}
+              eventDate={eventDate}
+              timezone={timezone}
+              layout="header"
+              onCancel={() => setEditingMeta(false)}
+              onSaved={() => setEditingMeta(false)}
+            />
+          ) : (
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h1
+                  className="truncate text-xl text-slate-900 sm:text-2xl"
+                  style={{ fontFamily: "var(--font-brand), serif" }}
+                >
+                  {projectName}
+                </h1>
+                <p className="mt-1 text-sm text-muted">
+                  Fecha límite:{" "}
+                  {formatCalendarDate(eventDate, "d MMMM yyyy", {
+                    locale: es,
+                  })}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingMeta(true)}
+                className="shrink-0 rounded-lg border border-border px-3 py-2 text-sm hover:border-accent hover:text-accent-dark"
+              >
+                Editar
+              </button>
+            </div>
+          )
+        ) : (
+          <ProjectMetaForm
+            projectId={projectId}
+            name={projectName}
+            eventDate={eventDate}
+            timezone={timezone}
+            layout="header"
+          />
+        )}
         <div className="mt-2 text-sm text-muted">
           <p>
             {format(planRange.startDate, "d MMM", { locale: es })} →{" "}
@@ -469,9 +509,19 @@ export function ProjectEditor({
         </div>
       </div>
 
+      {/* Mobile: Nueva tarea right under header */}
+      <div className="lg:hidden">{newTaskPanel}</div>
+
       <div className="grid gap-4 sm:gap-6 lg:grid-cols-[1fr_280px]">
         {/* Gantt first on mobile */}
         <div className="order-1 min-w-0 lg:order-3 lg:col-span-2">
+          <p className="mb-2 rounded-lg border border-border/80 bg-slate-50 px-3 py-2 text-xs text-muted lg:hidden">
+            <strong className="text-slate-700">Detalle:</strong> toca el{" "}
+            <strong className="text-slate-700">nombre</strong> de la tarea, o da{" "}
+            <strong className="text-slate-700">doble toque</strong> a una barra
+            del calendario o a un nodo del grafo. Un solo toque en la barra sirve
+            para moverla sin abrir el detalle.
+          </p>
           <TaskGantt
             tasks={tasks}
             eventDate={eventDate}
@@ -516,7 +566,7 @@ export function ProjectEditor({
         </div>
 
         <aside className="order-3 space-y-4 lg:order-2">
-          {newTaskPanel}
+          <div className="hidden lg:block">{newTaskPanel}</div>
 
           {/* Desktop detail panel */}
           <div className="hidden rounded-2xl border border-border bg-panel p-4 shadow-sm lg:block">

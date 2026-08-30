@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import { registerTap } from "@/lib/double-tap";
 import {
   ReactFlow,
   Background,
@@ -244,6 +245,9 @@ export function TaskFlow({
   onSelectConnector: (selected: boolean) => void;
 }) {
   const showMiniMap = useMediaQuery("(min-width: 768px)") ?? false;
+  const isLg = useMediaQuery("(min-width: 1024px)");
+  const requireDoubleTap = isLg === false;
+  const nodeTapRef = useRef<{ id: string; t: number } | null>(null);
   const flowRef = useRef<ReactFlowInstance | null>(null);
   const offsetX = showMiniMap ? MINIMAP_OFFSET_X : PAD_OFFSET_X;
   const offsetY = showMiniMap ? MINIMAP_OFFSET_Y : PAD_OFFSET_Y;
@@ -361,12 +365,22 @@ export function TaskFlow({
 
   const onNodeDragStop = useCallback(
     async (_: unknown, node: Node) => {
+      nodeTapRef.current = null;
       await updateTask(node.id, {
         positionX: node.position.x,
         positionY: node.position.y,
       });
     },
     [],
+  );
+
+  const onNodeClick = useCallback(
+    (_: unknown, n: Node) => {
+      if (registerTap(nodeTapRef, n.id, requireDoubleTap)) {
+        onSelectTask(n.id);
+      }
+    },
+    [onSelectTask, requireDoubleTap],
   );
 
   return (
@@ -388,9 +402,10 @@ export function TaskFlow({
               void persistEdgeDeletes([edge]);
             }}
             onNodeDragStop={onNodeDragStop}
-            onNodeClick={(_, n) => onSelectTask(n.id)}
+            onNodeClick={onNodeClick}
             onEdgeClick={() => onSelectConnector(true)}
             onPaneClick={() => {
+              nodeTapRef.current = null;
               onSelectTask(null);
               onSelectConnector(false);
             }}

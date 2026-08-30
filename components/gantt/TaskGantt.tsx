@@ -7,7 +7,8 @@ import { ControlButton } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { updateTask } from "@/lib/actions";
 import { calendarDate, toUtcDateIso, addCalendarDays } from "@/lib/dates";
-import { useGanttLabelWidth } from "@/lib/use-media-query";
+import { registerTap } from "@/lib/double-tap";
+import { useGanttLabelWidth, useMediaQuery } from "@/lib/use-media-query";
 
 export type GanttTask = {
   id: string;
@@ -86,6 +87,9 @@ export function TaskGantt({
   const labelW = useGanttLabelWidth();
   const labelWRef = useRef(labelW);
   labelWRef.current = labelW;
+  const isLg = useMediaQuery("(min-width: 1024px)");
+  const requireDoubleTap = isLg === false;
+  const barTapRef = useRef<{ id: string; t: number } | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const [locked, setLocked] = useState(false);
@@ -93,6 +97,12 @@ export function TaskGantt({
   const dragStartX = useRef(0);
   const dragDaysRef = useRef(0);
   const dayPxRef = useRef(DAY_PX);
+
+  function trySelectFromBar(taskId: string) {
+    if (registerTap(barTapRef, taskId, requireDoubleTap)) {
+      onSelectTask(taskId);
+    }
+  }
 
   const { minDay, maxDay, rows } = useMemo(() => {
     const starts = tasks
@@ -384,7 +394,7 @@ export function TaskGantt({
                       if (e.button !== 0 && e.pointerType === "mouse") return;
                       e.preventDefault();
                       if (!interactive) {
-                        onSelectTask(task.id);
+                        trySelectFromBar(task.id);
                         return;
                       }
                       const target = e.currentTarget;
@@ -414,11 +424,13 @@ export function TaskGantt({
                         target.removeEventListener("pointerup", onUp);
                         target.removeEventListener("pointercancel", onUp);
                         const days = dragDaysRef.current;
-                        onSelectTask(task.id);
                         if (days === 0) {
                           setDrag(null);
+                          trySelectFromBar(task.id);
                           return;
                         }
+                        barTapRef.current = null;
+                        setDrag(null);
                         void commitShift(task, days);
                       };
                       target.addEventListener("pointermove", onMove);
