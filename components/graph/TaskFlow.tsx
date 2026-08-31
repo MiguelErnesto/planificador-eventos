@@ -62,7 +62,7 @@ function TaskNode({ data, selected }: NodeProps) {
     : "!bg-accent";
   return (
     <div
-      className={`relative ${d.hideHandles ? "w-[132px] min-w-[132px]" : "min-w-[160px]"}`}
+      className={`relative ${d.hideHandles ? "w-[148px] min-w-[148px]" : "min-w-[160px]"}`}
     >
       <Handle
         type="target"
@@ -83,9 +83,7 @@ function TaskNode({ data, selected }: NodeProps) {
         style={{ top: "70%" }}
       />
       <div
-        className={`relative overflow-hidden rounded-xl border-2 bg-white shadow-sm ${
-          d.hideHandles ? "px-2 py-1.5" : "px-3 py-2"
-        } ${
+        className={`relative overflow-hidden rounded-xl border-2 bg-white px-3 py-2 shadow-sm ${
           d.isCritical
             ? "border-critical"
             : selected
@@ -107,10 +105,10 @@ function TaskNode({ data, selected }: NodeProps) {
         >
           {d.title}
         </p>
-        <p className="relative text-[10px] text-muted sm:text-xs">
+        <p className="relative text-xs text-muted">
           {d.durationDays}d · {d.progressPct}%
         </p>
-        {d.isCritical && !d.hideHandles && (
+        {d.isCritical && (
           <span className="relative mt-1 inline-block rounded bg-red-50 px-1.5 text-[10px] font-medium uppercase tracking-wide text-critical">
             Crítico
           </span>
@@ -336,25 +334,37 @@ export function TaskFlow({
     return maxX + NODE_WIDTH + CANVAS_PAD;
   }, [readOnly, tasks]);
 
-  const onInit = useCallback((instance: ReactFlowInstance) => {
-    flowRef.current = instance;
-    requestAnimationFrame(() => {
-      instance.fitView({ padding: 0.15, duration: 0 });
-    });
-  }, []);
+  const onInit = useCallback(
+    (instance: ReactFlowInstance) => {
+      flowRef.current = instance;
+      requestAnimationFrame(() => {
+        if (readOnly) {
+          // Keep readable zoom; tree is wider than the phone — user pans L→R.
+          void instance.setViewport({ x: 24, y: 24, zoom: 0.85 }, { duration: 0 });
+        } else {
+          void instance.fitView({ padding: 0.15, duration: 0 });
+        }
+      });
+    },
+    [readOnly],
+  );
 
   useEffect(() => {
     const onResize = () => {
+      if (readOnly) return;
       flowRef.current?.fitView({ padding: 0.15, duration: 0 });
     };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-  }, []);
+  }, [readOnly]);
 
   useEffect(() => {
     if (!readOnly) return;
     requestAnimationFrame(() => {
-      flowRef.current?.fitView({ padding: 0.12, duration: 0 });
+      void flowRef.current?.setViewport(
+        { x: 24, y: 24, zoom: 0.85 },
+        { duration: 0 },
+      );
     });
   }, [readOnly, initialNodes, initialEdges]);
 
@@ -426,16 +436,19 @@ export function TaskFlow({
     <div className="space-y-2">
       {readOnly && (
         <p className="text-xs text-muted">
-          Mapa de dependencias. Toca una tarea para ver el detalle y añadir
-          enlaces.
+          Árbol de izquierda a derecha. Desliza para explorar; toca una tarea
+          para el detalle y los enlaces.
         </p>
       )}
       <div
-        className={`h-[min(380px,50dvh)] w-full rounded-2xl border border-border bg-slate-50 ${
-          readOnly ? "overflow-hidden" : "overflow-x-auto overflow-y-hidden"
+        className={`h-[min(420px,55dvh)] w-full overflow-hidden rounded-2xl border border-border bg-slate-50 ${
+          readOnly ? "" : "overflow-x-auto overflow-y-hidden"
         }`}
       >
-        <div className="h-full min-w-full" style={{ width: canvasWidth ?? "100%" }}>
+        <div
+          className="h-full min-w-full"
+          style={{ width: readOnly ? "100%" : (canvasWidth ?? "100%") }}
+        >
           <ReactFlow
             className="[&_.react-flow__edgelabel-renderer]:z-[1001]"
             nodes={nodes}
@@ -478,11 +491,15 @@ export function TaskFlow({
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             defaultViewport={{
-              x: offsetX,
-              y: offsetY,
-              zoom: 1,
+              x: readOnly ? 24 : offsetX,
+              y: readOnly ? 24 : offsetY,
+              zoom: readOnly ? 0.85 : 1,
             }}
+            minZoom={readOnly ? 0.4 : 0.5}
+            maxZoom={readOnly ? 1.25 : 2}
             zoomOnScroll={false}
+            zoomOnPinch
+            panOnDrag
             preventScrolling={readOnly}
             proOptions={{ hideAttribution: true }}
           >

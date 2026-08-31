@@ -33,7 +33,7 @@ Prefer `sm:` for form stacking and `lg:` for sidebar / dense desktop chrome.
 11. Mobile detail layout order: Gantt first, then graph / nueva tarea.
 12. Below `lg`: open task detail with one tap on the Gantt **name**, or **double tap** on Gantt bars (`lib/double-tap.ts`). Dragging a bar must not open the sheet. Graph nodes use a **single tap** (read-only map).
 13. Below `lg`: project header is read-only (name + date + Editar); full meta form only after Editar. “Nueva tarea” sits under the header, before the Gantt.
-14. Below `lg` the task graph is **read-only** (compact auto-layout + fitView, no handles/connect/drag). Dependencies are edited in task detail via “Añadir predecesor” / “Añadir sucesor” buttons (FS only for now) and Quitar.
+14. Below `lg` the task graph is **read-only**: left-to-right layered tree (`layeredGraphPositions`), readable zoom + pan (no crushing fitView), no handles/connect/drag. Edit dependencies in task detail (“Añadir predecesor” / “Añadir sucesor”, FS only) and Quitar.
 
 ## Sensitive components
 

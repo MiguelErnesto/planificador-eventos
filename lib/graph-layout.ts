@@ -1,7 +1,12 @@
-const COL_GAP = 168;
-const ROW_GAP = 72;
+/** Column / row spacing for a readable left-to-right tree on mobile. */
+const COL_GAP = 240;
+const ROW_GAP = 120;
 
-/** Left-to-right layered positions from a DAG (longest-path levels). Visual only. */
+/**
+ * Left-to-right layered tree layout (longest-path levels).
+ * Nodes in each column are ordered by the barycenter of their parents
+ * so sibling branches stay closer together and edges cross less.
+ */
 export function layeredGraphPositions(
   taskIds: string[],
   edges: { from: string; to: string }[],
@@ -66,10 +71,40 @@ export function layeredGraphPositions(
     byLevel.set(lv, list);
   }
 
+  const levelKeys = [...byLevel.keys()].sort((a, b) => a - b);
+  const rank = new Map<string, number>();
+
+  // Forward barycenter: keep children near their parents (tree-like).
+  for (const lv of levelKeys) {
+    const ids = byLevel.get(lv)!;
+    if (lv === 0) {
+      ids.forEach((id, i) => rank.set(id, i));
+      continue;
+    }
+    const scored = ids.map((id, original) => {
+      const parents = preds.get(id) ?? [];
+      const parentRanks = parents
+        .map((p) => rank.get(p))
+        .filter((r): r is number => r != null);
+      const bary =
+        parentRanks.length > 0
+          ? parentRanks.reduce((a, b) => a + b, 0) / parentRanks.length
+          : original;
+      return { id, bary, original };
+    });
+    scored.sort((a, b) => a.bary - b.bary || a.original - b.original);
+    byLevel.set(
+      lv,
+      scored.map((s) => s.id),
+    );
+    scored.forEach((s, i) => rank.set(s.id, i));
+  }
+
   const maxInColumn = Math.max(1, ...[...byLevel.values()].map((ids) => ids.length));
 
   const positions = new Map<string, { x: number; y: number }>();
-  for (const [lv, ids] of byLevel) {
+  for (const lv of levelKeys) {
+    const ids = byLevel.get(lv)!;
     const offsetY = ((maxInColumn - ids.length) * rowGap) / 2;
     ids.forEach((id, i) => {
       positions.set(id, { x: lv * colGap, y: offsetY + i * rowGap });
