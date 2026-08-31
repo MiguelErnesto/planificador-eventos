@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { updateProject } from "@/lib/actions";
+import { btn } from "@/lib/button-styles";
 import { localTimeZone, toDateInputValue } from "@/lib/dates";
 
 const fieldClass =
@@ -127,7 +128,7 @@ export function ProjectMetaForm({
       <button
         type="submit"
         disabled={pending || !dirty}
-        className="rounded-lg bg-accent px-4 py-1.5 text-sm font-medium text-white hover:bg-accent-dark disabled:opacity-50"
+        className={`${btn.primary} px-4 py-1.5 text-sm`}
       >
         {pending ? "Guardando…" : "Guardar"}
       </button>
@@ -136,7 +137,7 @@ export function ProjectMetaForm({
           type="button"
           disabled={pending}
           onClick={reset}
-          className="rounded-lg border border-border px-4 py-1.5 text-sm hover:border-accent hover:text-accent-dark"
+          className={`${btn.secondary} px-4 py-1.5 text-sm`}
         >
           Cancelar
         </button>

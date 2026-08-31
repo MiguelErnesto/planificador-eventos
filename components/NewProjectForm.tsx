@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { NewProjectNameInput } from "@/components/NewProjectNameInput";
 import { LocalTimezoneInput } from "@/components/LocalTimezoneInput";
+import { btn } from "@/lib/button-styles";
 
 export function NewProjectForm({
   action,
@@ -55,7 +56,7 @@ export function NewProjectForm({
         <button
           type="button"
           onClick={openForm}
-          className="rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white hover:bg-accent-dark sm:ml-auto"
+          className={`${btn.primary} px-4 py-2.5 text-sm sm:ml-auto`}
         >
           {hasProjects ? "Nuevo proyecto" : "Crear el primero"}
         </button>
@@ -70,7 +71,7 @@ export function NewProjectForm({
         <button
           type="button"
           onClick={closeForm}
-          className="rounded-lg border border-border px-3 py-1.5 text-xs hover:border-accent hover:text-accent-dark"
+          className={`${btn.secondary} ${btn.sm}`}
         >
           Cancelar
         </button>
@@ -95,7 +96,7 @@ export function NewProjectForm({
         <LocalTimezoneInput />
         <button
           type="submit"
-          className="rounded-lg bg-accent px-4 py-2 font-medium text-white hover:bg-accent-dark"
+          className={`${btn.primary} px-4 py-2 text-sm`}
         >
           Crear
         </button>

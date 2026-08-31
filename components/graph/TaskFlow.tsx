@@ -31,6 +31,7 @@ import {
 } from "@/lib/dependency";
 import type { DependencyType } from "@/lib/cpm";
 import { layeredGraphPositions } from "@/lib/graph-layout";
+import { useConfirm } from "@/lib/use-confirm";
 import { useMediaQuery } from "@/lib/use-media-query";
 
 export type FlowTask = {
@@ -264,6 +265,7 @@ export function TaskFlow({
   const showMiniMap = useMediaQuery("(min-width: 768px)") ?? false;
   const isLg = useMediaQuery("(min-width: 1024px)");
   const readOnly = isLg === false;
+  const [confirm, confirmDialog] = useConfirm();
   const flowRef = useRef<ReactFlowInstance | null>(null);
   const offsetX = showMiniMap ? MINIMAP_OFFSET_X : PAD_OFFSET_X;
   const offsetY = showMiniMap ? MINIMAP_OFFSET_Y : PAD_OFFSET_Y;
@@ -414,6 +416,27 @@ export function TaskFlow({
     [initialEdges, setEdges, onSelectConnector],
   );
 
+  const askDeleteEdges = useCallback(
+    async (deleted: Edge[]) => {
+      if (deleted.length === 0) return;
+      const ok = await confirm({
+        title:
+          deleted.length === 1 ? "Eliminar enlace" : "Eliminar enlaces",
+        message:
+          deleted.length === 1
+            ? "¿Seguro que quieres eliminar este enlace? Esta acción no se puede deshacer."
+            : `¿Seguro que quieres eliminar ${deleted.length} enlaces? Esta acción no se puede deshacer.`,
+        confirmLabel: "Eliminar",
+      });
+      if (!ok) {
+        setEdges(initialEdges);
+        return;
+      }
+      await persistEdgeDeletes(deleted);
+    },
+    [confirm, initialEdges, persistEdgeDeletes, setEdges],
+  );
+
   const onNodeDragStop = useCallback(
     async (_: unknown, node: Node) => {
       if (readOnly) return;
@@ -434,6 +457,7 @@ export function TaskFlow({
 
   return (
     <div className="space-y-2">
+      {confirmDialog}
       {readOnly && (
         <p className="text-xs text-muted">
           Árbol de izquierda a derecha. Desliza para explorar; toca una tarea
@@ -462,13 +486,19 @@ export function TaskFlow({
             isValidConnection={(c) =>
               dependencyTypeFromHandles(c.sourceHandle, c.targetHandle) != null
             }
-            onEdgesDelete={readOnly ? undefined : persistEdgeDeletes}
+            onEdgesDelete={
+              readOnly
+                ? undefined
+                : (deleted) => {
+                    void askDeleteEdges(deleted);
+                  }
+            }
             onEdgeDoubleClick={
               readOnly
                 ? undefined
                 : (_, edge) => {
                     setEdges((eds) => eds.filter((e) => e.id !== edge.id));
-                    void persistEdgeDeletes([edge]);
+                    void askDeleteEdges([edge]);
                   }
             }
             onNodeDragStop={readOnly ? undefined : onNodeDragStop}

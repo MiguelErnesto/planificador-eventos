@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
+import { btn } from "@/lib/button-styles";
 
 export function BottomSheet({
   open,
@@ -54,7 +55,7 @@ export function BottomSheet({
           <button
             type="button"
             onClick={onClose}
-            className="shrink-0 rounded-lg border border-border px-3 py-2 text-sm hover:border-accent hover:text-accent-dark"
+            className={`shrink-0 ${btn.secondary} ${btn.md}`}
           >
             Cerrar
           </button>

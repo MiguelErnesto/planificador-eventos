@@ -15,7 +15,9 @@ import {
   updateTask,
 } from "@/lib/actions";
 import { calendarDate, addCalendarDays, formatCalendarDate } from "@/lib/dates";
+import { btn } from "@/lib/button-styles";
 import { eventProgressPct } from "@/lib/progress";
+import { useConfirm } from "@/lib/use-confirm";
 import { useMediaQuery } from "@/lib/use-media-query";
 
 type Task = FlowTask & {
@@ -186,7 +188,7 @@ function AddDependencyControl({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-2 w-full rounded-lg border border-border bg-white px-3 py-2 text-left text-sm font-medium hover:border-accent hover:text-accent-dark"
+        className={`mt-2 w-full text-left ${btn.secondary} ${btn.md}`}
       >
         {label}
       </button>
@@ -236,7 +238,7 @@ function AddDependencyControl({
       <div className="flex flex-wrap gap-2">
         <button
           type="submit"
-          className="rounded-lg border border-accent bg-accent/10 px-3 py-2 font-medium text-accent-dark hover:bg-accent/20"
+          className={`${btn.primary} ${btn.md}`}
         >
           Añadir
         </button>
@@ -246,7 +248,7 @@ function AddDependencyControl({
             setOpen(false);
             setError(null);
           }}
-          className="rounded-lg border border-border bg-white px-3 py-2 hover:border-accent"
+          className={`${btn.secondary} ${btn.md}`}
         >
           Cancelar
         </button>
@@ -271,21 +273,42 @@ function TaskDetailBody({
   startTransition: (fn: () => void | Promise<void>) => void;
   onDeleted: () => void;
 }) {
+  const [confirm, confirmDialog] = useConfirm();
+
+  async function askRemoveDependency(label: string, dependencyId: string) {
+    const ok = await confirm({
+      title: "Quitar enlace",
+      message: `¿Seguro que quieres quitar el enlace con «${label}»?`,
+      confirmLabel: "Quitar",
+    });
+    if (!ok) return;
+    startTransition(() => deleteDependency(dependencyId));
+  }
+
   return (
     <div className="space-y-3 text-sm">
+      {confirmDialog}
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs font-medium uppercase tracking-wide text-muted">
           Detalle
         </span>
         <button
           type="button"
-          className="rounded-lg border border-border px-2.5 py-1.5 text-xs text-red-600 hover:bg-red-50"
-          onClick={() =>
-            startTransition(async () => {
-              await deleteTask(selected.id);
-              onDeleted();
-            })
-          }
+          className={`${btn.danger} ${btn.sm}`}
+          onClick={() => {
+            void (async () => {
+              const ok = await confirm({
+                title: "Eliminar tarea",
+                message: `¿Seguro que quieres eliminar «${selected.title}»? Esta acción no se puede deshacer.`,
+                confirmLabel: "Eliminar",
+              });
+              if (!ok) return;
+              startTransition(async () => {
+                await deleteTask(selected.id);
+                onDeleted();
+              });
+            })();
+          }}
         >
           Eliminar tarea
         </button>
@@ -371,9 +394,12 @@ function TaskDetailBody({
                   </span>
                   <button
                     type="button"
-                    className="shrink-0 rounded-lg px-3 py-2 text-xs text-red-600 hover:bg-red-50"
+                    className={`shrink-0 ${btn.danger} ${btn.sm}`}
                     onClick={() =>
-                      startTransition(() => deleteDependency(e.id))
+                      void askRemoveDependency(
+                        from?.title ?? e.fromTaskId,
+                        e.id,
+                      )
                     }
                   >
                     Quitar
@@ -409,9 +435,9 @@ function TaskDetailBody({
                   </span>
                   <button
                     type="button"
-                    className="shrink-0 rounded-lg px-3 py-2 text-xs text-red-600 hover:bg-red-50"
+                    className={`shrink-0 ${btn.danger} ${btn.sm}`}
                     onClick={() =>
-                      startTransition(() => deleteDependency(e.id))
+                      void askRemoveDependency(to?.title ?? e.toTaskId, e.id)
                     }
                   >
                     Quitar
@@ -549,7 +575,7 @@ export function ProjectEditor({
           />
           <button
             type="submit"
-            className="w-full rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-dark"
+            className={`w-full ${btn.primary} ${btn.md}`}
           >
             Añadir
           </button>
@@ -591,7 +617,7 @@ export function ProjectEditor({
               <button
                 type="button"
                 onClick={() => setEditingMeta(true)}
-                className="shrink-0 rounded-lg border border-border px-3 py-2 text-sm hover:border-accent hover:text-accent-dark"
+                className={`shrink-0 ${btn.secondary} ${btn.md}`}
               >
                 Editar
               </button>

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { es } from "date-fns/locale";
 import { formatCalendarDate } from "@/lib/dates";
 import { ProjectMetaForm } from "@/components/ProjectMetaForm";
+import { btn } from "@/lib/button-styles";
+import { useConfirm } from "@/lib/use-confirm";
 
 export function ProjectListItem({
   id,
@@ -31,9 +33,23 @@ export function ProjectListItem({
 }) {
   const [editing, setEditing] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [confirm, confirmDialog] = useConfirm();
+
+  async function handleDelete() {
+    const ok = await confirm({
+      title: "Eliminar proyecto",
+      message: `¿Seguro que quieres eliminar «${name}»? Esta acción no se puede deshacer.`,
+      confirmLabel: "Eliminar",
+    });
+    if (!ok) return;
+    const fd = new FormData();
+    fd.set("projectId", id);
+    await onDelete(fd);
+  }
 
   return (
     <li className="relative flex flex-col gap-2 overflow-hidden border-b-[3px] border-double border-border px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
+      {confirmDialog}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-y-0 left-0 bg-accent/25"
@@ -81,32 +97,30 @@ export function ProjectListItem({
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
-              className="rounded-lg border border-border px-3 py-2 text-xs hover:border-accent hover:text-accent-dark sm:hidden"
+              className={`${btn.secondary} ${btn.sm} sm:hidden`}
             >
               {expanded ? "Menos" : "Más"}
             </button>
             <Link
               href={`/projects/${id}`}
-              className="rounded-lg border border-border px-3 py-2 text-xs hover:border-accent hover:text-accent-dark"
+              className={`${btn.secondary} ${btn.sm}`}
             >
               Abrir
             </Link>
             <button
               type="button"
               onClick={() => setEditing(true)}
-              className="rounded-lg border border-border px-3 py-2 text-xs hover:border-accent hover:text-accent-dark"
+              className={`${btn.secondary} ${btn.sm}`}
             >
               Editar
             </button>
-            <form action={onDelete}>
-              <input type="hidden" name="projectId" value={id} />
-              <button
-                type="submit"
-                className="rounded-lg border border-border px-3 py-2 text-xs text-red-600 hover:bg-red-50"
-              >
-                Eliminar
-              </button>
-            </form>
+            <button
+              type="button"
+              onClick={() => void handleDelete()}
+              className={`${btn.danger} ${btn.sm}`}
+            >
+              Eliminar
+            </button>
           </div>
         </>
       )}
