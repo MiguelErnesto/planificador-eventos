@@ -8,6 +8,7 @@ import { TaskGantt } from "@/components/gantt/TaskGantt";
 import { ProjectMetaForm } from "@/components/ProjectMetaForm";
 import { BottomSheet } from "@/components/BottomSheet";
 import {
+  createDependency,
   createTask,
   deleteDependency,
   deleteTask,
@@ -16,6 +17,7 @@ import {
 import { calendarDate, addCalendarDays, formatCalendarDate } from "@/lib/dates";
 import { eventProgressPct } from "@/lib/progress";
 import { useMediaQuery } from "@/lib/use-media-query";
+import type { DependencyType } from "@/lib/cpm";
 
 type Task = FlowTask & {
   earliestStart: Date | string | null;
@@ -136,13 +138,136 @@ function TaskProgressSlider({
   );
 }
 
+function AddPredecessorForm({
+  projectId,
+  selectedId,
+  tasks,
+  edges,
+  startTransition,
+}: {
+  projectId: string;
+  selectedId: string;
+  tasks: Task[];
+  edges: Edge[];
+  startTransition: (fn: () => void | Promise<void>) => void;
+}) {
+  const predIds = new Set(
+    edges.filter((e) => e.toTaskId === selectedId).map((e) => e.fromTaskId),
+  );
+  const candidates = tasks.filter(
+    (t) => t.id !== selectedId && !predIds.has(t.id),
+  );
+  const [fromId, setFromId] = useState("");
+  const [type, setType] = useState<DependencyType>("FS");
+  const [lagDays, setLagDays] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setFromId("");
+    setType("FS");
+    setLagDays(0);
+    setError(null);
+  }, [selectedId]);
+
+  const chosenFromId = candidates.some((t) => t.id === fromId)
+    ? fromId
+    : (candidates[0]?.id ?? "");
+
+  if (candidates.length === 0) {
+    return (
+      <p className="text-xs text-muted">No hay más tareas para enlazar.</p>
+    );
+  }
+
+  return (
+    <form
+      className="mt-2 space-y-2 rounded-lg border border-border bg-slate-50 p-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!chosenFromId) return;
+        setError(null);
+        startTransition(async () => {
+          try {
+            await createDependency(
+              projectId,
+              chosenFromId,
+              selectedId,
+              lagDays,
+              type,
+            );
+            setType("FS");
+            setLagDays(0);
+          } catch (err) {
+            setError(
+              err instanceof Error
+                ? err.message
+                : "No se pudo crear la dependencia",
+            );
+          }
+        });
+      }}
+    >
+      <label className="block space-y-1">
+        <span className="text-xs text-muted">Añadir predecesor</span>
+        <select
+          value={chosenFromId}
+          onChange={(e) => setFromId(e.target.value)}
+          className="w-full min-w-0 rounded-lg border border-border bg-white px-3 py-2"
+          aria-label="Tarea predecesora"
+        >
+          {candidates.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.title}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="min-w-0 flex-1 space-y-1">
+          <span className="text-xs text-muted">Tipo</span>
+          <select
+            value={type}
+            onChange={(e) => setType(e.target.value as DependencyType)}
+            className="w-full rounded-lg border border-border bg-white px-3 py-2"
+            aria-label="Tipo de dependencia"
+          >
+            <option value="FS">FS (fin → inicio)</option>
+            <option value="SS">SS (inicio → inicio)</option>
+            <option value="FF">FF (fin → fin)</option>
+          </select>
+        </label>
+        <label className="w-20 space-y-1">
+          <span className="text-xs text-muted">Lag</span>
+          <input
+            type="number"
+            min={0}
+            value={lagDays}
+            onChange={(e) => setLagDays(Math.max(0, Number(e.target.value) || 0))}
+            className="w-full rounded-lg border border-border bg-white px-2 py-2"
+            aria-label="Días de lag"
+          />
+        </label>
+        <button
+          type="submit"
+          className="rounded-lg border border-accent bg-accent/10 px-3 py-2 font-medium text-accent-dark hover:bg-accent/20"
+        >
+          Añadir
+        </button>
+      </div>
+      {error && <p className="text-xs text-red-700">{error}</p>}
+    </form>
+  );
+}
+
 function TaskDetailBody({
+  projectId,
   selected,
   tasks,
   edges,
   startTransition,
   onDeleted,
 }: {
+  projectId: string;
   selected: Task;
   tasks: Task[];
   edges: Edge[];
@@ -249,7 +374,7 @@ function TaskDetailBody({
                   </span>
                   <button
                     type="button"
-                    className="text-xs text-red-600"
+                    className="shrink-0 rounded-lg px-3 py-2 text-xs text-red-600 hover:bg-red-50"
                     onClick={() =>
                       startTransition(() => deleteDependency(e.id))
                     }
@@ -260,6 +385,13 @@ function TaskDetailBody({
               );
             })}
         </ul>
+        <AddPredecessorForm
+          projectId={projectId}
+          selectedId={selected.id}
+          tasks={tasks}
+          edges={edges}
+          startTransition={startTransition}
+        />
       </div>
       <div>
         <p className="mb-1 text-muted">Sucesores</p>
@@ -519,8 +651,9 @@ export function ProjectEditor({
             <strong className="text-slate-700">Detalle:</strong> toca el{" "}
             <strong className="text-slate-700">nombre</strong> de la tarea, o da{" "}
             <strong className="text-slate-700">doble toque</strong> a una barra
-            del calendario o a un nodo del grafo. Un solo toque en la barra sirve
-            para moverla sin abrir el detalle.
+            del calendario. Un solo toque en la barra sirve para moverla. En el{" "}
+            <strong className="text-slate-700">grafo</strong>, un toque abre el
+            detalle. Los enlaces se editan ahí (Añadir predecesor).
           </p>
           <TaskGantt
             tasks={tasks}
@@ -577,6 +710,7 @@ export function ProjectEditor({
               </>
             ) : (
               <TaskDetailBody
+                projectId={projectId}
                 selected={selected}
                 tasks={tasks}
                 edges={edges}
@@ -596,6 +730,7 @@ export function ProjectEditor({
       >
         {selected && (
           <TaskDetailBody
+            projectId={projectId}
             selected={selected}
             tasks={tasks}
             edges={edges}

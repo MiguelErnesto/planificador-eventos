@@ -31,8 +31,9 @@ Prefer `sm:` for form stacking and `lg:` for sidebar / dense desktop chrome.
 9. New-project form: hidden until Nuevo / `#nuevo` (see `NewProjectForm`).
 10. Task detail on `<lg`: `BottomSheet`, not a fixed sidebar column.
 11. Mobile detail layout order: Gantt first, then graph / nueva tarea.
-12. Below `lg`: open task detail with one tap on the Gantt **name**, or **double tap** on Gantt bars / graph nodes (`lib/double-tap.ts`). Dragging a bar must not open the sheet.
+12. Below `lg`: open task detail with one tap on the Gantt **name**, or **double tap** on Gantt bars (`lib/double-tap.ts`). Dragging a bar must not open the sheet. Graph nodes use a **single tap** (read-only map).
 13. Below `lg`: project header is read-only (name + date + Editar); full meta form only after Editar. “Nueva tarea” sits under the header, before the Gantt.
+14. Below `lg` the task graph is **read-only** (auto-layout + fitView, no handles/connect/drag). Create and remove dependencies from task detail (“Añadir predecesor” / Quitar).
 
 ## Sensitive components
 

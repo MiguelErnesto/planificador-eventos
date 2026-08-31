@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { registerTap } from "@/lib/double-tap";
 import {
   ReactFlow,
   Background,
@@ -31,6 +30,7 @@ import {
   handlesForType,
 } from "@/lib/dependency";
 import type { DependencyType } from "@/lib/cpm";
+import { layeredGraphPositions } from "@/lib/graph-layout";
 import { useMediaQuery } from "@/lib/use-media-query";
 
 export type FlowTask = {
@@ -44,6 +44,8 @@ export type FlowTask = {
   positionY: number;
 };
 
+type TaskNodeData = FlowTask & { hideHandles?: boolean };
+
 export type FlowEdge = {
   id: string;
   fromTaskId: string;
@@ -53,8 +55,11 @@ export type FlowEdge = {
 };
 
 function TaskNode({ data, selected }: NodeProps) {
-  const d = data as FlowTask;
+  const d = data as TaskNodeData;
   const fill = Math.min(100, Math.max(0, d.progressPct));
+  const handleClass = d.hideHandles
+    ? "!h-px !w-px !min-h-0 !min-w-0 !border-0 !bg-transparent !opacity-0 pointer-events-none"
+    : "!bg-accent";
   return (
     <div className="relative min-w-[160px]">
       <Handle
@@ -62,7 +67,8 @@ function TaskNode({ data, selected }: NodeProps) {
         id="target-start"
         position={Position.Left}
         title="Inicio (destino)"
-        className="!bg-accent"
+        className={handleClass}
+        isConnectable={!d.hideHandles}
         style={{ top: "35%" }}
       />
       <Handle
@@ -70,7 +76,8 @@ function TaskNode({ data, selected }: NodeProps) {
         id="source-start"
         position={Position.Left}
         title="Inicio (origen)"
-        className="!bg-accent"
+        className={handleClass}
+        isConnectable={!d.hideHandles}
         style={{ top: "70%" }}
       />
       <div
@@ -104,7 +111,8 @@ function TaskNode({ data, selected }: NodeProps) {
         id="source-finish"
         position={Position.Right}
         title="Fin (origen)"
-        className="!bg-accent"
+        className={handleClass}
+        isConnectable={!d.hideHandles}
         style={{ top: "35%" }}
       />
       <Handle
@@ -112,7 +120,8 @@ function TaskNode({ data, selected }: NodeProps) {
         id="target-finish"
         position={Position.Right}
         title="Fin (destino)"
-        className="!bg-accent"
+        className={handleClass}
+        isConnectable={!d.hideHandles}
         style={{ top: "70%" }}
       />
     </div>
@@ -246,22 +255,34 @@ export function TaskFlow({
 }) {
   const showMiniMap = useMediaQuery("(min-width: 768px)") ?? false;
   const isLg = useMediaQuery("(min-width: 1024px)");
-  const requireDoubleTap = isLg === false;
-  const nodeTapRef = useRef<{ id: string; t: number } | null>(null);
+  const readOnly = isLg === false;
   const flowRef = useRef<ReactFlowInstance | null>(null);
   const offsetX = showMiniMap ? MINIMAP_OFFSET_X : PAD_OFFSET_X;
   const offsetY = showMiniMap ? MINIMAP_OFFSET_Y : PAD_OFFSET_Y;
 
+  const layoutById = useMemo(() => {
+    if (!readOnly) return null;
+    return layeredGraphPositions(
+      tasks.map((t) => t.id),
+      edges.map((e) => ({ from: e.fromTaskId, to: e.toTaskId })),
+    );
+  }, [readOnly, tasks, edges]);
+
   const initialNodes: Node[] = useMemo(
     () =>
-      tasks.map((t) => ({
-        id: t.id,
-        type: "task",
-        position: { x: t.positionX, y: t.positionY },
-        data: t,
-        deletable: false,
-      })),
-    [tasks],
+      tasks.map((t) => {
+        const laid = layoutById?.get(t.id);
+        return {
+          id: t.id,
+          type: "task",
+          position: laid ?? { x: t.positionX, y: t.positionY },
+          data: { ...t, hideHandles: readOnly },
+          deletable: false,
+          draggable: !readOnly,
+          connectable: !readOnly,
+        };
+      }),
+    [tasks, layoutById, readOnly],
   );
 
   const initialEdges: Edge[] = useMemo(
@@ -278,10 +299,12 @@ export function TaskFlow({
           label: dependencyLabel(e.type, e.lagDays),
           markerEnd: { type: MarkerType.ArrowClosed, color: DEFAULT_EDGE },
           style: { stroke: DEFAULT_EDGE, strokeWidth: 2 },
-          interactionWidth: 24,
+          interactionWidth: readOnly ? 0 : 24,
+          selectable: !readOnly,
+          focusable: !readOnly,
         };
       }),
-    [edges],
+    [edges, readOnly],
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -298,10 +321,10 @@ export function TaskFlow({
   }, [initialNodes, initialEdges, selectedTaskId, setNodes, setEdges]);
 
   const canvasWidth = useMemo(() => {
-    if (tasks.length === 0) return undefined;
+    if (readOnly || tasks.length === 0) return undefined;
     const maxX = Math.max(...tasks.map((t) => t.positionX));
     return maxX + NODE_WIDTH + CANVAS_PAD;
-  }, [tasks]);
+  }, [readOnly, tasks]);
 
   const onInit = useCallback((instance: ReactFlowInstance) => {
     flowRef.current = instance;
@@ -318,8 +341,16 @@ export function TaskFlow({
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  useEffect(() => {
+    if (!readOnly) return;
+    requestAnimationFrame(() => {
+      flowRef.current?.fitView({ padding: 0.3, duration: 0 });
+    });
+  }, [readOnly, initialNodes, initialEdges]);
+
   const onConnect = useCallback(
     async (connection: Connection) => {
+      if (readOnly) return;
       if (!connection.source || !connection.target) return;
       const type = dependencyTypeFromHandles(
         connection.sourceHandle,
@@ -343,7 +374,7 @@ export function TaskFlow({
         setEdges(initialEdges);
       }
     },
-    [projectId, setEdges, initialEdges],
+    [readOnly, projectId, setEdges, initialEdges],
   );
 
   const persistEdgeDeletes = useCallback(
@@ -365,27 +396,36 @@ export function TaskFlow({
 
   const onNodeDragStop = useCallback(
     async (_: unknown, node: Node) => {
-      nodeTapRef.current = null;
+      if (readOnly) return;
       await updateTask(node.id, {
         positionX: node.position.x,
         positionY: node.position.y,
       });
     },
-    [],
+    [readOnly],
   );
 
   const onNodeClick = useCallback(
     (_: unknown, n: Node) => {
-      if (registerTap(nodeTapRef, n.id, requireDoubleTap)) {
-        onSelectTask(n.id);
-      }
+      onSelectTask(n.id);
     },
-    [onSelectTask, requireDoubleTap],
+    [onSelectTask],
   );
 
   return (
-    <div className="h-[min(380px,50dvh)] w-full overflow-x-auto overflow-y-hidden rounded-2xl border border-border bg-slate-50">
-      <div className="h-full min-w-full" style={{ width: canvasWidth ?? "100%" }}>
+    <div className="space-y-2">
+      {readOnly && (
+        <p className="text-xs text-muted">
+          Mapa de dependencias. Toca una tarea para ver el detalle y añadir
+          enlaces.
+        </p>
+      )}
+      <div
+        className={`h-[min(380px,50dvh)] w-full rounded-2xl border border-border bg-slate-50 ${
+          readOnly ? "overflow-hidden" : "overflow-x-auto overflow-y-hidden"
+        }`}
+      >
+        <div className="h-full min-w-full" style={{ width: canvasWidth ?? "100%" }}>
           <ReactFlow
             className="[&_.react-flow__edgelabel-renderer]:z-[1001]"
             nodes={nodes}
@@ -393,23 +433,31 @@ export function TaskFlow({
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            nodesDraggable={!readOnly}
+            nodesConnectable={!readOnly}
+            edgesFocusable={!readOnly}
             isValidConnection={(c) =>
               dependencyTypeFromHandles(c.sourceHandle, c.targetHandle) != null
             }
-            onEdgesDelete={persistEdgeDeletes}
-            onEdgeDoubleClick={(_, edge) => {
-              setEdges((eds) => eds.filter((e) => e.id !== edge.id));
-              void persistEdgeDeletes([edge]);
-            }}
-            onNodeDragStop={onNodeDragStop}
+            onEdgesDelete={readOnly ? undefined : persistEdgeDeletes}
+            onEdgeDoubleClick={
+              readOnly
+                ? undefined
+                : (_, edge) => {
+                    setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+                    void persistEdgeDeletes([edge]);
+                  }
+            }
+            onNodeDragStop={readOnly ? undefined : onNodeDragStop}
             onNodeClick={onNodeClick}
-            onEdgeClick={() => onSelectConnector(true)}
+            onEdgeClick={
+              readOnly ? undefined : () => onSelectConnector(true)
+            }
             onPaneClick={() => {
-              nodeTapRef.current = null;
               onSelectTask(null);
               onSelectConnector(false);
             }}
-            deleteKeyCode={["Backspace", "Delete"]}
+            deleteKeyCode={readOnly ? null : ["Backspace", "Delete"]}
             edgesReconnectable={false}
             defaultEdgeOptions={{
               type: "dependency",
@@ -425,11 +473,11 @@ export function TaskFlow({
               zoom: 1,
             }}
             zoomOnScroll={false}
-            preventScrolling={false}
+            preventScrolling={readOnly}
             proOptions={{ hideAttribution: true }}
           >
             <Background gap={16} color="#e2e8f0" />
-            <Controls />
+            <Controls showInteractive={!readOnly} />
             {showMiniMap && (
               <MiniMap
                 position="top-left"
@@ -442,6 +490,7 @@ export function TaskFlow({
             )}
           </ReactFlow>
         </div>
+      </div>
     </div>
   );
 }
