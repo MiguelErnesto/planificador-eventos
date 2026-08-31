@@ -61,7 +61,9 @@ function TaskNode({ data, selected }: NodeProps) {
     ? "!h-px !w-px !min-h-0 !min-w-0 !border-0 !bg-transparent !opacity-0 pointer-events-none"
     : "!bg-accent";
   return (
-    <div className="relative min-w-[160px]">
+    <div
+      className={`relative ${d.hideHandles ? "w-[132px] min-w-[132px]" : "min-w-[160px]"}`}
+    >
       <Handle
         type="target"
         id="target-start"
@@ -81,7 +83,9 @@ function TaskNode({ data, selected }: NodeProps) {
         style={{ top: "70%" }}
       />
       <div
-        className={`relative overflow-hidden rounded-xl border-2 bg-white px-3 py-2 shadow-sm ${
+        className={`relative overflow-hidden rounded-xl border-2 bg-white shadow-sm ${
+          d.hideHandles ? "px-2 py-1.5" : "px-3 py-2"
+        } ${
           d.isCritical
             ? "border-critical"
             : selected
@@ -96,11 +100,17 @@ function TaskNode({ data, selected }: NodeProps) {
           }`}
           style={{ width: `${fill}%` }}
         />
-        <p className="relative text-sm font-semibold text-slate-800">{d.title}</p>
-        <p className="relative text-xs text-muted">
+        <p
+          className={`relative font-semibold text-slate-800 ${
+            d.hideHandles ? "truncate text-xs" : "text-sm"
+          }`}
+        >
+          {d.title}
+        </p>
+        <p className="relative text-[10px] text-muted sm:text-xs">
           {d.durationDays}d · {d.progressPct}%
         </p>
-        {d.isCritical && (
+        {d.isCritical && !d.hideHandles && (
           <span className="relative mt-1 inline-block rounded bg-red-50 px-1.5 text-[10px] font-medium uppercase tracking-wide text-critical">
             Crítico
           </span>
@@ -344,7 +354,7 @@ export function TaskFlow({
   useEffect(() => {
     if (!readOnly) return;
     requestAnimationFrame(() => {
-      flowRef.current?.fitView({ padding: 0.3, duration: 0 });
+      flowRef.current?.fitView({ padding: 0.12, duration: 0 });
     });
   }, [readOnly, initialNodes, initialEdges]);
 

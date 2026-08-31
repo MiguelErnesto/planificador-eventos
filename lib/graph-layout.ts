@@ -1,5 +1,5 @@
-const COL_GAP = 220;
-const ROW_GAP = 100;
+const COL_GAP = 168;
+const ROW_GAP = 72;
 
 /** Left-to-right layered positions from a DAG (longest-path levels). Visual only. */
 export function layeredGraphPositions(
@@ -66,10 +66,13 @@ export function layeredGraphPositions(
     byLevel.set(lv, list);
   }
 
+  const maxInColumn = Math.max(1, ...[...byLevel.values()].map((ids) => ids.length));
+
   const positions = new Map<string, { x: number; y: number }>();
   for (const [lv, ids] of byLevel) {
+    const offsetY = ((maxInColumn - ids.length) * rowGap) / 2;
     ids.forEach((id, i) => {
-      positions.set(id, { x: lv * colGap, y: i * rowGap });
+      positions.set(id, { x: lv * colGap, y: offsetY + i * rowGap });
     });
   }
   return positions;

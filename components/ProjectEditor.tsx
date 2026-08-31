@@ -17,7 +17,6 @@ import {
 import { calendarDate, addCalendarDays, formatCalendarDate } from "@/lib/dates";
 import { eventProgressPct } from "@/lib/progress";
 import { useMediaQuery } from "@/lib/use-media-query";
-import type { DependencyType } from "@/lib/cpm";
 
 type Task = FlowTask & {
   earliestStart: Date | string | null;
@@ -138,44 +137,59 @@ function TaskProgressSlider({
   );
 }
 
-function AddPredecessorForm({
+function AddDependencyControl({
   projectId,
   selectedId,
   tasks,
   edges,
+  mode,
   startTransition,
 }: {
   projectId: string;
   selectedId: string;
   tasks: Task[];
   edges: Edge[];
+  mode: "predecessor" | "successor";
   startTransition: (fn: () => void | Promise<void>) => void;
 }) {
-  const predIds = new Set(
-    edges.filter((e) => e.toTaskId === selectedId).map((e) => e.fromTaskId),
+  const linkedIds = new Set(
+    mode === "predecessor"
+      ? edges.filter((e) => e.toTaskId === selectedId).map((e) => e.fromTaskId)
+      : edges.filter((e) => e.fromTaskId === selectedId).map((e) => e.toTaskId),
   );
   const candidates = tasks.filter(
-    (t) => t.id !== selectedId && !predIds.has(t.id),
+    (t) => t.id !== selectedId && !linkedIds.has(t.id),
   );
-  const [fromId, setFromId] = useState("");
-  const [type, setType] = useState<DependencyType>("FS");
-  const [lagDays, setLagDays] = useState(0);
+  const [open, setOpen] = useState(false);
+  const [otherId, setOtherId] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setFromId("");
-    setType("FS");
-    setLagDays(0);
+    setOpen(false);
+    setOtherId("");
     setError(null);
-  }, [selectedId]);
+  }, [selectedId, mode]);
 
-  const chosenFromId = candidates.some((t) => t.id === fromId)
-    ? fromId
+  const chosenId = candidates.some((t) => t.id === otherId)
+    ? otherId
     : (candidates[0]?.id ?? "");
 
-  if (candidates.length === 0) {
+  const label =
+    mode === "predecessor" ? "Añadir predecesor" : "Añadir sucesor";
+  const selectLabel =
+    mode === "predecessor" ? "Tarea predecesora" : "Tarea sucesora";
+
+  if (candidates.length === 0) return null;
+
+  if (!open) {
     return (
-      <p className="text-xs text-muted">No hay más tareas para enlazar.</p>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-2 w-full rounded-lg border border-border bg-white px-3 py-2 text-left text-sm font-medium hover:border-accent hover:text-accent-dark"
+      >
+        {label}
+      </button>
     );
   }
 
@@ -184,19 +198,15 @@ function AddPredecessorForm({
       className="mt-2 space-y-2 rounded-lg border border-border bg-slate-50 p-2"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!chosenFromId) return;
+        if (!chosenId) return;
         setError(null);
+        const fromTaskId = mode === "predecessor" ? chosenId : selectedId;
+        const toTaskId = mode === "predecessor" ? selectedId : chosenId;
         startTransition(async () => {
           try {
-            await createDependency(
-              projectId,
-              chosenFromId,
-              selectedId,
-              lagDays,
-              type,
-            );
-            setType("FS");
-            setLagDays(0);
+            await createDependency(projectId, fromTaskId, toTaskId, 0, "FS");
+            setOpen(false);
+            setOtherId("");
           } catch (err) {
             setError(
               err instanceof Error
@@ -208,12 +218,12 @@ function AddPredecessorForm({
       }}
     >
       <label className="block space-y-1">
-        <span className="text-xs text-muted">Añadir predecesor</span>
+        <span className="text-xs text-muted">{label}</span>
         <select
-          value={chosenFromId}
-          onChange={(e) => setFromId(e.target.value)}
+          value={chosenId}
+          onChange={(e) => setOtherId(e.target.value)}
           className="w-full min-w-0 rounded-lg border border-border bg-white px-3 py-2"
-          aria-label="Tarea predecesora"
+          aria-label={selectLabel}
         >
           {candidates.map((t) => (
             <option key={t.id} value={t.id}>
@@ -222,36 +232,23 @@ function AddPredecessorForm({
           ))}
         </select>
       </label>
-      <div className="flex flex-wrap items-end gap-2">
-        <label className="min-w-0 flex-1 space-y-1">
-          <span className="text-xs text-muted">Tipo</span>
-          <select
-            value={type}
-            onChange={(e) => setType(e.target.value as DependencyType)}
-            className="w-full rounded-lg border border-border bg-white px-3 py-2"
-            aria-label="Tipo de dependencia"
-          >
-            <option value="FS">FS (fin → inicio)</option>
-            <option value="SS">SS (inicio → inicio)</option>
-            <option value="FF">FF (fin → fin)</option>
-          </select>
-        </label>
-        <label className="w-20 space-y-1">
-          <span className="text-xs text-muted">Lag</span>
-          <input
-            type="number"
-            min={0}
-            value={lagDays}
-            onChange={(e) => setLagDays(Math.max(0, Number(e.target.value) || 0))}
-            className="w-full rounded-lg border border-border bg-white px-2 py-2"
-            aria-label="Días de lag"
-          />
-        </label>
+      <p className="text-[11px] text-muted">Tipo: FS (fin → inicio)</p>
+      <div className="flex flex-wrap gap-2">
         <button
           type="submit"
           className="rounded-lg border border-accent bg-accent/10 px-3 py-2 font-medium text-accent-dark hover:bg-accent/20"
         >
           Añadir
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            setError(null);
+          }}
+          className="rounded-lg border border-border bg-white px-3 py-2 hover:border-accent"
+        >
+          Cancelar
         </button>
       </div>
       {error && <p className="text-xs text-red-700">{error}</p>}
@@ -385,29 +382,52 @@ function TaskDetailBody({
               );
             })}
         </ul>
-        <AddPredecessorForm
+        <AddDependencyControl
           projectId={projectId}
           selectedId={selected.id}
           tasks={tasks}
           edges={edges}
+          mode="predecessor"
           startTransition={startTransition}
         />
       </div>
       <div>
         <p className="mb-1 text-muted">Sucesores</p>
-        <ul className="list-disc pl-4">
+        <ul className="space-y-1">
           {edges
             .filter((e) => e.fromTaskId === selected.id)
             .map((e) => {
               const to = tasks.find((t) => t.id === e.toTaskId);
               return (
-                <li key={e.id}>
-                  {to?.title ?? e.toTaskId}{" "}
-                  <span className="text-muted">{e.type}</span>
+                <li
+                  key={e.id}
+                  className="flex items-center justify-between gap-2"
+                >
+                  <span>
+                    {to?.title ?? e.toTaskId}{" "}
+                    <span className="text-muted">{e.type}</span>
+                  </span>
+                  <button
+                    type="button"
+                    className="shrink-0 rounded-lg px-3 py-2 text-xs text-red-600 hover:bg-red-50"
+                    onClick={() =>
+                      startTransition(() => deleteDependency(e.id))
+                    }
+                  >
+                    Quitar
+                  </button>
                 </li>
               );
             })}
         </ul>
+        <AddDependencyControl
+          projectId={projectId}
+          selectedId={selected.id}
+          tasks={tasks}
+          edges={edges}
+          mode="successor"
+          startTransition={startTransition}
+        />
       </div>
     </div>
   );
@@ -653,7 +673,7 @@ export function ProjectEditor({
             <strong className="text-slate-700">doble toque</strong> a una barra
             del calendario. Un solo toque en la barra sirve para moverla. En el{" "}
             <strong className="text-slate-700">grafo</strong>, un toque abre el
-            detalle. Los enlaces se editan ahí (Añadir predecesor).
+            detalle. Los enlaces se editan ahí (predecesor / sucesor).
           </p>
           <TaskGantt
             tasks={tasks}
