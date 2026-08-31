@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { updateProject } from "@/lib/actions";
+import { btn } from "@/lib/button-styles";
 import { localTimeZone, toDateInputValue } from "@/lib/dates";
 
 const fieldClass =
@@ -80,7 +81,7 @@ export function ProjectMetaForm({
       aria-label="Nombre del proyecto"
       className={
         layout === "header"
-          ? "w-full rounded-lg bg-transparent px-1 -mx-1 text-3xl text-slate-900 outline-none ring-accent focus:ring-2"
+          ? "w-full rounded-lg bg-transparent px-1 -mx-1 text-xl text-slate-900 outline-none ring-accent focus:ring-2 sm:text-2xl lg:text-3xl"
           : `${fieldClass} w-full`
       }
       style={
@@ -104,14 +105,17 @@ export function ProjectMetaForm({
   );
 
   const timezoneField = (
-    <div className="flex flex-col gap-0.5 text-sm">
+    <div className="flex min-w-0 flex-col gap-0.5 text-sm">
       <span className="text-xs italic text-muted">Zona horaria</span>
-      <p className="py-1.5 text-sm text-slate-800">{timezone}</p>
+      <p className="truncate py-1.5 text-sm text-slate-800" title={timezone}>
+        {timezone}
+      </p>
       {deviceTz && deviceTz !== timezone && (
         <button
           type="button"
           onClick={() => setTimezone(deviceTz)}
-          className="text-left text-xs text-accent-dark hover:underline"
+          className="break-all text-left text-xs text-accent-dark hover:underline"
+          title={deviceTz}
         >
           Usar la de este equipo ({deviceTz})
         </button>
@@ -124,7 +128,7 @@ export function ProjectMetaForm({
       <button
         type="submit"
         disabled={pending || !dirty}
-        className="rounded-lg bg-accent px-4 py-1.5 text-sm font-medium text-white hover:bg-accent-dark disabled:opacity-50"
+        className={`${btn.primary} px-4 py-1.5 text-sm`}
       >
         {pending ? "Guardando…" : "Guardar"}
       </button>
@@ -133,7 +137,7 @@ export function ProjectMetaForm({
           type="button"
           disabled={pending}
           onClick={reset}
-          className="rounded-lg border border-border px-4 py-1.5 text-sm hover:border-accent hover:text-accent-dark"
+          className={`${btn.secondary} px-4 py-1.5 text-sm`}
         >
           Cancelar
         </button>

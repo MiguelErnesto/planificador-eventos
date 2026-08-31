@@ -1,29 +1,30 @@
 "use client";
 
 import Link from "next/link";
-
-const linkClass =
-  "rounded-lg border border-border bg-transparent px-2.5 py-1 font-bold hover:bg-slate-100 hover:text-accent-dark";
+import { btn } from "@/lib/button-styles";
 
 export function HeaderNav() {
   return (
-    <nav className="flex gap-4 text-sm text-muted">
+    <nav className="flex shrink-0 gap-2 text-sm sm:gap-4">
       <Link
         href="/projects#nuevo"
-        className={linkClass}
+        className={`${btn.primary} ${btn.md} font-bold`}
         onClick={(event) => {
           if (window.location.pathname !== "/projects") return;
+          event.preventDefault();
           if (window.location.hash === "#nuevo") {
-            event.preventDefault();
+            window.dispatchEvent(new Event("open-nuevo"));
+            requestAnimationFrame(() => {
+              document.getElementById("nuevo")?.focus();
+            });
+            return;
           }
-          requestAnimationFrame(() => {
-            document.getElementById("nuevo")?.focus();
-          });
+          window.location.hash = "nuevo";
         }}
       >
         Nuevo
       </Link>
-      <Link href="/projects" className={linkClass}>
+      <Link href="/projects" className={`${btn.secondary} ${btn.md} font-bold`}>
         Ver listado
       </Link>
     </nav>
