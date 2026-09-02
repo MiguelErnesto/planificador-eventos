@@ -43,7 +43,7 @@ export default async function ProjectsPage() {
 
       <section className="space-y-1">
         <h2 className="text-lg font-semibold text-slate-800">
-          Eventos / Tareas / Proyectos
+          Listado
         </h2>
         {projects.length === 0 && !dbError ? (
           <p className="text-sm text-muted">
