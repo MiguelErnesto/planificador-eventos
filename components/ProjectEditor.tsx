@@ -17,6 +17,7 @@ import {
 import { calendarDate, addCalendarDays, formatCalendarDate } from "@/lib/dates";
 import { btn } from "@/lib/button-styles";
 import { eventProgressPct } from "@/lib/progress";
+import { dependencyTypeDisplay } from "@/lib/dependency";
 import { useConfirm } from "@/lib/use-confirm";
 import { useMediaQuery } from "@/lib/use-media-query";
 
@@ -234,7 +235,7 @@ function AddDependencyControl({
           ))}
         </select>
       </label>
-      <p className="text-[11px] text-muted">Tipo: FS (fin → inicio)</p>
+      <p className="text-[11px] text-muted">Tipo: Fin → Inicio</p>
       <div className="flex flex-wrap gap-2">
         <button
           type="submit"
@@ -390,7 +391,9 @@ function TaskDetailBody({
                 >
                   <span>
                     {from?.title ?? e.fromTaskId}{" "}
-                    <span className="text-muted">{e.type}</span>
+                    <span className="text-muted">
+                      {dependencyTypeDisplay(e.type)}
+                    </span>
                   </span>
                   <button
                     type="button"
@@ -431,7 +434,9 @@ function TaskDetailBody({
                 >
                   <span>
                     {to?.title ?? e.toTaskId}{" "}
-                    <span className="text-muted">{e.type}</span>
+                    <span className="text-muted">
+                      {dependencyTypeDisplay(e.type)}
+                    </span>
                   </span>
                   <button
                     type="button"
@@ -487,7 +492,6 @@ export function ProjectEditor({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [connectorSelected, setConnectorSelected] = useState(false);
   const [newTaskOpen, setNewTaskOpen] = useState(false);
-  const [summaryOpen, setSummaryOpen] = useState(false);
   const [editingMeta, setEditingMeta] = useState(false);
   const [pending, startTransition] = useTransition();
   const isLg = useMediaQuery("(min-width: 1024px)");
@@ -653,29 +657,24 @@ export function ProjectEditor({
             </span>
             {pending ? " · guardando…" : ""}
           </p>
-          <button
-            type="button"
-            onClick={() => setSummaryOpen((v) => !v)}
-            className="mt-1 text-xs text-accent-dark hover:underline"
+          <p
+            className={`mt-1 text-xs ${
+              Math.round(planSlackDays) <= 2
+                ? "text-critical"
+                : "text-muted"
+            }`}
           >
-            {summaryOpen ? "Ocultar resumen" : "Ver resumen"}
-          </button>
-          {summaryOpen && (
-            <div className="mt-1 space-y-0.5 text-xs">
-              <p>
-                Plan desde hoy:{" "}
-                {format(calendarDate(today), "d MMMM yyyy", { locale: es })}
-              </p>
-              <p>
-                Inicia:{" "}
-                {format(planRange.startDate, "d MMMM yyyy", { locale: es })}
-              </p>
-              <p>
-                Termina:{" "}
-                {format(planRange.endDate, "d MMMM yyyy", { locale: es })}
-              </p>
-            </div>
-          )}
+            {Math.round(planSlackDays) < 0
+              ? `Desde hoy, el plan se pasa ${daysPhrase(planSlackDays)} de la fecha límite.`
+              : `Desde hoy hasta el ${format(
+                  addCalendarDays(
+                    calendarDate(today),
+                    Math.round(planSlackDays),
+                  ),
+                  "d MMMM yyyy",
+                  { locale: es },
+                )} hay ${daysPhrase(planSlackDays)} de holgura.`}
+          </p>
           {exceedsEventDate && (
             <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
               El plan no llega a la fecha del evento

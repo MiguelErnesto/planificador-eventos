@@ -80,23 +80,25 @@ export function NewProjectForm({
         action={action}
         className="flex flex-col gap-2 sm:flex-row sm:items-end"
       >
-        <label className="flex flex-1 flex-col gap-0.5 text-sm">
-          <span className="text-xs italic text-muted">Nombre</span>
-          <NewProjectNameInput />
-        </label>
-        <label className="flex flex-col gap-0.5 text-sm">
-          <span className="text-xs italic text-muted">Fecha límite</span>
-          <input
-            type="date"
-            name="eventDate"
-            required
-            className="rounded-lg border border-border px-3 py-1.5 outline-none ring-accent focus:ring-2"
-          />
-        </label>
+        <div className="grid grid-cols-2 items-end gap-2 sm:contents">
+          <label className="flex min-w-0 flex-1 flex-col gap-0.5 text-sm">
+            <span className="text-xs italic text-muted">Nombre</span>
+            <NewProjectNameInput />
+          </label>
+          <label className="flex min-w-0 flex-col gap-0.5 text-sm">
+            <span className="text-xs italic text-muted">Fecha límite</span>
+            <input
+              type="date"
+              name="eventDate"
+              required
+              className="w-full min-w-0 rounded-lg border border-border px-3 py-1.5 outline-none ring-accent focus:ring-2"
+            />
+          </label>
+        </div>
         <LocalTimezoneInput />
         <button
           type="submit"
-          className={`${btn.primary} px-4 py-2 text-sm`}
+          className={`${btn.primary} w-full px-4 py-2 text-sm sm:w-auto`}
         >
           Crear
         </button>

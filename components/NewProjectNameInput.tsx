@@ -21,7 +21,7 @@ export function NewProjectNameInput() {
       name="name"
       required
       placeholder="Nombre del evento, tarea o proyecto..."
-      className="rounded-lg border border-border px-3 py-1.5 outline-none ring-accent placeholder:text-[11px] placeholder:italic focus:ring-2"
+      className="w-full min-w-0 rounded-lg border border-border px-3 py-1.5 outline-none ring-accent placeholder:text-[11px] placeholder:italic focus:ring-2"
     />
   );
 }

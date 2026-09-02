@@ -41,12 +41,14 @@ export default async function RootLayout({
           <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <Link href="/" className="group min-w-0">
               <p
-                className="truncate text-xl tracking-tight text-accent-dark sm:text-2xl"
+                className="text-sm leading-tight tracking-tight text-accent-dark sm:truncate sm:text-2xl"
                 style={{ fontFamily: "var(--font-brand), serif" }}
               >
                 {title}
               </p>
-              <p className="truncate text-sm text-muted sm:text-base">{tagline}</p>
+              <p className="text-[11px] leading-tight text-muted sm:truncate sm:text-base">
+                {tagline}
+              </p>
             </Link>
             <HeaderNav />
           </div>
