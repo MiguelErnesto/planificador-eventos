@@ -32,7 +32,6 @@ export function ProjectListItem({
   onDelete: (formData: FormData) => void | Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
-  const [expanded, setExpanded] = useState(false);
   const [confirm, confirmDialog] = useConfirm();
 
   async function handleDelete() {
@@ -83,24 +82,13 @@ export function ProjectListItem({
               {progressPct}% · {taskCount}{" "}
               {taskCount === 1 ? "tarea" : "tareas"}
             </p>
-            <p
-              className={`mt-0.5 text-xs text-muted ${
-                expanded ? "block" : "hidden sm:block"
-              }`}
-            >
+            <p className="mt-0.5 text-xs text-muted">
               {formatCalendarDate(startsAt, "d MMM", { locale: es })} →{" "}
               {formatCalendarDate(endsAt, "d MMM", { locale: es })} ·{" "}
               {durationDays} {durationDays === 1 ? "día" : "días"}
             </p>
           </div>
           <div className="relative z-10 flex shrink-0 flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              className={`${btn.secondary} ${btn.sm} sm:hidden`}
-            >
-              {expanded ? "Menos" : "Más"}
-            </button>
             <Link
               href={`/projects/${id}`}
               className={`${btn.secondary} ${btn.sm}`}

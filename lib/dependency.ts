@@ -23,6 +23,17 @@ export function handlesForType(type: DependencyType) {
   }
 }
 
+export function dependencyTypeDisplay(type: DependencyType) {
+  switch (type) {
+    case "SS":
+      return "Inicio → Inicio";
+    case "FF":
+      return "Fin → Fin";
+    default:
+      return "Fin → Inicio";
+  }
+}
+
 export function dependencyLabel(type: DependencyType, lagDays: number) {
   const lag = lagDays ? `+${lagDays}d` : "";
   if (type === "FS") return lag || undefined;
