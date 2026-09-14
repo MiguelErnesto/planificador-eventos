@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { CpmError } from "@/lib/cpm";
+import { buildPdfGraph } from "@/lib/pdf/build-pdf-graph";
 import { renderProjectPdf } from "@/lib/pdf/render-project-pdf";
 import {
   buildProjectReport,
@@ -35,13 +36,13 @@ export async function GET(_req: Request, { params }: Params) {
       timezone: project.timezone,
       today: cpm.today,
       tasks: project.tasks,
-      criticalPathIds: cpm.criticalPath,
       planSlackDays: cpm.planSlackDays,
       exceedsEventDate: cpm.exceedsEventDate,
       overrunDays: cpm.overrunDays,
     });
+    const graph = buildPdfGraph(project.tasks, project.edges);
 
-    const pdf = await renderProjectPdf(report);
+    const pdf = await renderProjectPdf(report, graph);
     const filename = projectPdfFilename(project.name, project.eventDate);
 
     return new NextResponse(new Uint8Array(pdf), {

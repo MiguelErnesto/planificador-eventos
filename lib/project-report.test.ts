@@ -64,14 +64,12 @@ describe("buildProjectReport", () => {
       timezone: "Europe/Madrid",
       today,
       tasks: [],
-      criticalPathIds: [],
       planSlackDays: 12,
       exceedsEventDate: false,
       overrunDays: 0,
     });
 
     expect(report.tasks).toEqual([]);
-    expect(report.criticalPathLabel).toBeNull();
     expect(report.overrunWarning).toBeNull();
     expect(report.progressPct).toBe(0);
     expect(report.slackHeadline).toBe("Holgura 12 días");
@@ -108,7 +106,6 @@ describe("buildProjectReport", () => {
           slackDays: 0,
         }),
       ],
-      criticalPathIds: ["early", "also-critical"],
       planSlackDays: 1,
       exceedsEventDate: false,
       overrunDays: 0,
@@ -119,7 +116,6 @@ describe("buildProjectReport", () => {
       "also-critical",
       "late",
     ]);
-    expect(report.criticalPathLabel).toBe("Venue → Cáterin");
     expect(report.slackIsTight).toBe(true);
     expect(report.tasks[0]?.criticalLabel).toBe("Sí");
     expect(report.tasks[2]?.criticalLabel).toBe("No");
@@ -142,7 +138,6 @@ describe("buildProjectReport", () => {
           isCritical: true,
         }),
       ],
-      criticalPathIds: ["a"],
       planSlackDays: -4,
       exceedsEventDate: true,
       overrunDays: 4,

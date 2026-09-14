@@ -1,5 +1,31 @@
-import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import {
+  Document,
+  Page,
+  Path,
+  Polygon,
+  Rect,
+  StyleSheet,
+  Svg,
+  Text,
+  View,
+} from "@react-pdf/renderer";
 import type { ProjectReport } from "@/lib/project-report";
+import {
+  PDF_NODE_H,
+  PDF_NODE_W,
+  type PdfGraph,
+  type PdfGraphNode,
+} from "@/lib/pdf/build-pdf-graph";
+
+const ACCENT = "#0d9488";
+const CRITICAL = "#dc2626";
+const MUTED = "#64748b";
+const BORDER = "#e2e8f0";
+
+const LANDSCAPE = { width: 841.89, height: 595.28 };
+const GRAPH_MARGIN_X = 40;
+const GRAPH_MARGIN_TOP = 72;
+const GRAPH_MARGIN_BOTTOM = 40;
 
 const styles = StyleSheet.create({
   page: {
@@ -10,9 +36,17 @@ const styles = StyleSheet.create({
     color: "#0f172a",
     fontFamily: "Helvetica",
   },
+  graphPage: {
+    paddingTop: 28,
+    paddingBottom: 36,
+    paddingHorizontal: GRAPH_MARGIN_X,
+    fontSize: 10,
+    color: "#0f172a",
+    fontFamily: "Helvetica",
+  },
   kicker: {
     fontSize: 8,
-    color: "#0f766e",
+    color: ACCENT,
     textTransform: "uppercase",
     letterSpacing: 0.6,
     marginBottom: 4,
@@ -22,8 +56,13 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica-Bold",
     marginBottom: 4,
   },
+  graphTitle: {
+    fontSize: 14,
+    fontFamily: "Helvetica-Bold",
+    marginBottom: 2,
+  },
   meta: {
-    color: "#64748b",
+    color: MUTED,
     marginBottom: 2,
   },
   summary: {
@@ -31,7 +70,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     padding: 10,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: BORDER,
     borderRadius: 4,
     backgroundColor: "#f8fafc",
   },
@@ -39,7 +78,7 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   tight: {
-    color: "#dc2626",
+    color: CRITICAL,
     fontFamily: "Helvetica-Bold",
   },
   warning: {
@@ -57,24 +96,21 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: "Helvetica-Bold",
   },
-  path: {
-    lineHeight: 1.4,
-  },
   empty: {
-    color: "#64748b",
+    color: MUTED,
     marginTop: 8,
   },
   table: {
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: BORDER,
   },
   row: {
     flexDirection: "row",
     borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
+    borderBottomColor: BORDER,
   },
   headerRow: {
-    backgroundColor: "#0f766e",
+    backgroundColor: ACCENT,
   },
   headerCell: {
     color: "#ffffff",
@@ -93,7 +129,7 @@ const styles = StyleSheet.create({
   critCol: { width: "10%" },
   pctCol: { width: "8%" },
   criticalText: {
-    color: "#dc2626",
+    color: CRITICAL,
     fontFamily: "Helvetica-Bold",
   },
   footer: {
@@ -108,7 +144,13 @@ const styles = StyleSheet.create({
   },
 });
 
-export function ProjectPdfDocument({ report }: { report: ProjectReport }) {
+export function ProjectPdfDocument({
+  report,
+  graph,
+}: {
+  report: ProjectReport;
+  graph: PdfGraph | null;
+}) {
   return (
     <Document
       title={report.name}
@@ -138,13 +180,6 @@ export function ProjectPdfDocument({ report }: { report: ProjectReport }) {
             <Text style={styles.warning}>{report.overrunWarning}</Text>
           ) : null}
         </View>
-
-        {report.criticalPathLabel ? (
-          <>
-            <Text style={styles.sectionTitle}>Camino crítico</Text>
-            <Text style={styles.path}>{report.criticalPathLabel}</Text>
-          </>
-        ) : null}
 
         <Text style={styles.sectionTitle}>Tareas</Text>
         {report.tasks.length === 0 ? (
@@ -210,11 +245,143 @@ export function ProjectPdfDocument({ report }: { report: ProjectReport }) {
           </View>
         )}
 
-        <View style={styles.footer} fixed>
-          <Text>{report.appTitle}</Text>
-          <Text render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
-        </View>
+        <PdfFooter appTitle={report.appTitle} />
       </Page>
+
+      {graph ? (
+        <Page size="A4" orientation="landscape" style={styles.graphPage}>
+          <Text style={styles.kicker}>{report.name}</Text>
+          <Text style={styles.graphTitle}>Grafo de tareas</Text>
+          <Text style={styles.meta}>
+            Árbol de izquierda a derecha. El borde rojo marca las tareas críticas.
+          </Text>
+          <PdfTaskGraph graph={graph} />
+          <PdfFooter appTitle={report.appTitle} />
+        </Page>
+      ) : null}
     </Document>
+  );
+}
+
+function PdfFooter({ appTitle }: { appTitle: string }) {
+  return (
+    <View style={styles.footer} fixed>
+      <Text>{appTitle}</Text>
+      <Text render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
+    </View>
+  );
+}
+
+function PdfTaskGraph({ graph }: { graph: PdfGraph }) {
+  const usableW = LANDSCAPE.width - GRAPH_MARGIN_X * 2;
+  const usableH = LANDSCAPE.height - GRAPH_MARGIN_TOP - GRAPH_MARGIN_BOTTOM;
+  const scale = Math.min(usableW / graph.width, usableH / graph.height, 1);
+  const width = graph.width * scale;
+  const height = graph.height * scale;
+
+  return (
+    <View style={{ marginTop: 10 }}>
+      <Svg width={width} height={height} viewBox={`0 0 ${graph.width} ${graph.height}`}>
+        {graph.edges.map((edge) => (
+          <Path
+            key={edge.id}
+            d={edge.path}
+            stroke={ACCENT}
+            strokeWidth={2}
+            fill="none"
+          />
+        ))}
+        {graph.edges.map((edge) => (
+          <Polygon key={`${edge.id}-arrow`} points={edge.arrowPoints} fill={ACCENT} />
+        ))}
+        {graph.nodes.map((node) => (
+          <PdfTaskNode key={node.id} node={node} />
+        ))}
+        {graph.edges.map((edge) =>
+          edge.label ? (
+            <Text
+              key={`${edge.id}-label`}
+              x={edge.labelX}
+              y={edge.labelY - 4}
+              style={{
+                fontSize: 8,
+                fill: MUTED,
+                fontFamily: "Helvetica-Bold",
+                textAnchor: "middle",
+              }}
+            >
+              {edge.label}
+            </Text>
+          ) : null,
+        )}
+      </Svg>
+    </View>
+  );
+}
+
+function PdfTaskNode({ node }: { node: PdfGraphNode }) {
+  const border = node.isCritical ? CRITICAL : BORDER;
+  const fill = node.isCritical ? "#fecaca" : "#ccfbf1";
+  const barW =
+    node.progressPct > 0
+      ? (PDF_NODE_W - 4) * (Math.min(100, Math.max(0, node.progressPct)) / 100)
+      : 0;
+  return (
+    <>
+      <Rect
+        x={node.x}
+        y={node.y}
+        width={PDF_NODE_W}
+        height={PDF_NODE_H}
+        rx={8}
+        ry={8}
+        fill="#ffffff"
+        stroke={border}
+        strokeWidth={2}
+      />
+      {barW > 0 ? (
+        <Rect
+          x={node.x + 2}
+          y={node.y + 2}
+          width={barW}
+          height={PDF_NODE_H - 4}
+          rx={6}
+          ry={6}
+          fill={fill}
+        />
+      ) : null}
+      <Text
+        x={node.x + 8}
+        y={node.y + 16}
+        style={{
+          fontSize: 9,
+          fontFamily: "Helvetica-Bold",
+          fill: node.isCritical ? CRITICAL : "#1e293b",
+        }}
+      >
+        {node.title}
+      </Text>
+      <Text
+        x={node.x + 8}
+        y={node.y + 30}
+        style={{ fontSize: 8, fill: MUTED }}
+      >
+        {node.meta}
+      </Text>
+      {node.isCritical ? (
+        <Text
+          x={node.x + 8}
+          y={node.y + 44}
+          style={{
+            fontSize: 7,
+            fontFamily: "Helvetica-Bold",
+            fill: CRITICAL,
+            textTransform: "uppercase",
+          }}
+        >
+          Crítico
+        </Text>
+      ) : null}
+    </>
   );
 }

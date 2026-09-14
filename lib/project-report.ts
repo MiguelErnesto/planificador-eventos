@@ -21,7 +21,6 @@ export type ProjectReportInput = {
   timezone: string;
   today: Date | string;
   tasks: ProjectReportTaskInput[];
-  criticalPathIds: string[];
   planSlackDays: number;
   exceedsEventDate: boolean;
   overrunDays: number;
@@ -53,7 +52,6 @@ export type ProjectReport = {
   slackIsTight: boolean;
   overrunWarning: string | null;
   tasks: ProjectReportRow[];
-  criticalPathLabel: string | null;
 };
 
 export function daysPhrase(days: number) {
@@ -89,10 +87,6 @@ export function buildProjectReport(input: ProjectReportInput): ProjectReport {
     : startDate;
   const durationDays = Math.max(0, differenceInCalendarDays(endDate, startDate));
   const slack = Math.round(input.planSlackDays);
-  const byId = new Map(input.tasks.map((t) => [t.id, t]));
-  const criticalTitles = input.criticalPathIds
-    .map((id) => byId.get(id)?.title)
-    .filter((title): title is string => Boolean(title));
 
   return {
     appTitle: APP_TITLE,
@@ -136,8 +130,6 @@ export function buildProjectReport(input: ProjectReportInput): ProjectReport {
         progressPct: task.progressPct,
       };
     }),
-    criticalPathLabel:
-      criticalTitles.length > 0 ? criticalTitles.join(" → ") : null,
   };
 }
 
