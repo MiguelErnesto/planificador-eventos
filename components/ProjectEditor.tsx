@@ -6,6 +6,7 @@ import { es } from "date-fns/locale";
 import { TaskFlow, type FlowTask, type FlowEdge } from "@/components/graph/TaskFlow";
 import { TaskGantt } from "@/components/gantt/TaskGantt";
 import { ProjectMetaForm } from "@/components/ProjectMetaForm";
+import { ExportPdfLink } from "@/components/ExportPdfLink";
 import { BottomSheet } from "@/components/BottomSheet";
 import {
   createDependency,
@@ -618,23 +619,31 @@ export function ProjectEditor({
                   })}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setEditingMeta(true)}
-                className={`shrink-0 ${btn.secondary} ${btn.md}`}
-              >
-                Editar
-              </button>
+              <div className="flex shrink-0 flex-col items-stretch gap-2 sm:flex-row">
+                <ExportPdfLink projectId={projectId} />
+                <button
+                  type="button"
+                  onClick={() => setEditingMeta(true)}
+                  className={`min-h-11 ${btn.secondary} ${btn.md}`}
+                >
+                  Editar
+                </button>
+              </div>
             </div>
           )
         ) : (
-          <ProjectMetaForm
-            projectId={projectId}
-            name={projectName}
-            eventDate={eventDate}
-            timezone={timezone}
-            layout="header"
-          />
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0 flex-1">
+              <ProjectMetaForm
+                projectId={projectId}
+                name={projectName}
+                eventDate={eventDate}
+                timezone={timezone}
+                layout="header"
+              />
+            </div>
+            <ExportPdfLink projectId={projectId} />
+          </div>
         )}
         <div className="mt-2 text-sm text-muted">
           <p>
