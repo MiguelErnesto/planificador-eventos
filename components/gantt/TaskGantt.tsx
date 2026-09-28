@@ -76,11 +76,13 @@ export function TaskGantt({
   eventDate,
   today,
   onSelectTask,
+  readOnly = false,
 }: {
   tasks: GanttTask[];
   eventDate: Date | string;
   today: Date | string;
   onSelectTask: (id: string) => void;
+  readOnly?: boolean;
 }) {
   const event = calendarDate(eventDate);
   const todayDate = calendarDate(today);
@@ -129,7 +131,7 @@ export function TaskGantt({
   const todayOffset = differenceInCalendarDays(todayDate, minDay);
   const dayPx = DAY_PX * zoom;
   dayPxRef.current = dayPx;
-  const interactive = !locked;
+  const interactive = !readOnly && !locked;
   const startsKey = tasks
     .map((t) => `${t.id}:${t.earliestStart ?? ""}`)
     .join("|");
@@ -194,7 +196,7 @@ export function TaskGantt({
   }, [labelW, totalDays, todayOffset]);
 
   async function commitShift(task: GanttTask, deltaDays: number) {
-    if (!task.earliestStart || deltaDays === 0) return;
+    if (readOnly || !task.earliestStart || deltaDays === 0) return;
     const next = calendarDate(task.earliestStart);
     next.setDate(next.getDate() + deltaDays);
     if (task.latestStart) {
@@ -261,14 +263,16 @@ export function TaskGantt({
                 >
                   <FitViewIcon />
                 </ControlButton>
-                <ControlButton
-                  className="react-flow__controls-interactive"
-                  title={locked ? "Desbloquear" : "Bloquear"}
-                  aria-label={locked ? "Desbloquear" : "Bloquear"}
-                  onClick={() => setLocked((v) => !v)}
-                >
-                  {locked ? <LockIcon /> : <UnlockIcon />}
-                </ControlButton>
+                {!readOnly && (
+                  <ControlButton
+                    className="react-flow__controls-interactive"
+                    title={locked ? "Desbloquear" : "Bloquear"}
+                    aria-label={locked ? "Desbloquear" : "Bloquear"}
+                    onClick={() => setLocked((v) => !v)}
+                  >
+                    {locked ? <LockIcon /> : <UnlockIcon />}
+                  </ControlButton>
+                )}
               </span>
             </span>
           </div>
@@ -384,12 +388,12 @@ export function TaskGantt({
                     />
                   )}
                   <div
-                    role="slider"
-                    aria-label={`Mover ${task.title}`}
+                    role={interactive ? "slider" : "presentation"}
+                    aria-label={interactive ? `Mover ${task.title}` : task.title}
                     aria-valuenow={drag?.id === task.id ? drag.days : 0}
                     aria-valuemin={-365}
                     aria-valuemax={365}
-                    tabIndex={0}
+                    tabIndex={interactive ? 0 : -1}
                     onPointerDown={(e) => {
                       if (e.button !== 0 && e.pointerType === "mouse") return;
                       e.preventDefault();

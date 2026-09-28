@@ -6,10 +6,21 @@ import { recalculateProject } from "./project-cpm";
 import { isValidTimeZone } from "./dates";
 import { validateDag, CpmError, type DependencyType } from "./cpm";
 
+const READ_ONLY_PROJECT = "Este proyecto es de solo lectura";
+
 function revalidateProject(projectId: string) {
   revalidatePath("/");
   revalidatePath("/projects");
   revalidatePath(`/projects/${projectId}`);
+}
+
+async function assertProjectMutable(projectId: string) {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { locked: true },
+  });
+  if (!project) throw new Error("Proyecto no encontrado");
+  if (project.locked) throw new Error(READ_ONLY_PROJECT);
 }
 
 export async function createProject(formData: FormData) {
@@ -33,6 +44,7 @@ export async function createProject(formData: FormData) {
 }
 
 export async function deleteProject(projectId: string) {
+  await assertProjectMutable(projectId);
   await prisma.project.delete({ where: { id: projectId } });
   revalidatePath("/");
   revalidatePath("/projects");
@@ -53,6 +65,7 @@ export async function updateProject(
     throw new Error("Zona horaria no válida");
   }
 
+  await assertProjectMutable(projectId);
   const existing = await prisma.project.findUniqueOrThrow({
     where: { id: projectId },
   });
@@ -85,6 +98,7 @@ export async function updateProject(
 }
 
 export async function createTask(projectId: string, formData: FormData) {
+  await assertProjectMutable(projectId);
   const title = String(formData.get("title") ?? "").trim();
   const durationDays = Number(formData.get("durationDays") ?? 1);
   if (!title || !Number.isFinite(durationDays) || durationDays < 1) {
@@ -117,6 +131,7 @@ export async function updateTask(
   },
 ) {
   const existing = await prisma.task.findUniqueOrThrow({ where: { id: taskId } });
+  await assertProjectMutable(existing.projectId);
   const progressPct =
     data.progressPct === undefined
       ? undefined
@@ -150,6 +165,7 @@ export async function updateTask(
 
 export async function deleteTask(taskId: string) {
   const existing = await prisma.task.findUniqueOrThrow({ where: { id: taskId } });
+  await assertProjectMutable(existing.projectId);
   await prisma.task.delete({ where: { id: taskId } });
   await recalculateProject(existing.projectId);
   revalidateProject(existing.projectId);
@@ -162,6 +178,7 @@ export async function createDependency(
   lagDays = 0,
   type: DependencyType = "FS",
 ) {
+  await assertProjectMutable(projectId);
   if (fromTaskId === toTaskId) {
     throw new Error("Una tarea no puede depender de sí misma");
   }
@@ -200,6 +217,7 @@ export async function deleteDependency(dependencyId: string) {
   const edge = await prisma.dependency.findUniqueOrThrow({
     where: { id: dependencyId },
   });
+  await assertProjectMutable(edge.projectId);
   await prisma.dependency.delete({ where: { id: dependencyId } });
   await recalculateProject(edge.projectId);
   revalidateProject(edge.projectId);
