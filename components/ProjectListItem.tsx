@@ -18,6 +18,7 @@ export function ProjectListItem({
   durationDays,
   progressPct,
   taskCount,
+  locked = false,
   onDelete,
 }: {
   id: string;
@@ -29,6 +30,7 @@ export function ProjectListItem({
   durationDays: number;
   progressPct: number;
   taskCount: number;
+  locked?: boolean;
   onDelete: (formData: FormData) => void | Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
@@ -76,7 +78,16 @@ export function ProjectListItem({
             aria-label={`Abrir ${name}`}
           />
           <div className="pointer-events-none relative z-10 min-w-0 flex-1">
-            <p className="truncate text-base font-medium text-slate-900">{name}</p>
+            <p className="flex min-w-0 items-center gap-2">
+              <span className="truncate text-base font-medium text-slate-900">
+                {name}
+              </span>
+              {locked && (
+                <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted">
+                  Solo lectura
+                </span>
+              )}
+            </p>
             <p className="mt-0.5 text-xs text-muted">
               {formatCalendarDate(eventDate, "d MMM yyyy", { locale: es })} ·{" "}
               {progressPct}% · {taskCount}{" "}
@@ -95,20 +106,24 @@ export function ProjectListItem({
             >
               Abrir
             </Link>
-            <button
-              type="button"
-              onClick={() => setEditing(true)}
-              className={`${btn.secondary} ${btn.sm}`}
-            >
-              Editar
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleDelete()}
-              className={`${btn.danger} ${btn.sm}`}
-            >
-              Eliminar
-            </button>
+            {!locked && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className={`${btn.secondary} ${btn.sm}`}
+                >
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleDelete()}
+                  className={`${btn.danger} ${btn.sm}`}
+                >
+                  Eliminar
+                </button>
+              </>
+            )}
           </div>
         </>
       )}

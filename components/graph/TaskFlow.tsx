@@ -254,6 +254,7 @@ export function TaskFlow({
   selectedTaskId,
   onSelectTask,
   onSelectConnector,
+  locked = false,
 }: {
   projectId: string;
   tasks: FlowTask[];
@@ -261,10 +262,12 @@ export function TaskFlow({
   selectedTaskId: string | null;
   onSelectTask: (id: string | null) => void;
   onSelectConnector: (selected: boolean) => void;
+  locked?: boolean;
 }) {
   const showMiniMap = useMediaQuery("(min-width: 768px)") ?? false;
   const isLg = useMediaQuery("(min-width: 1024px)");
   const readOnly = isLg === false;
+  const immutable = locked || readOnly;
   const [confirm, confirmDialog] = useConfirm();
   const flowRef = useRef<ReactFlowInstance | null>(null);
   const offsetX = showMiniMap ? MINIMAP_OFFSET_X : PAD_OFFSET_X;
@@ -286,13 +289,13 @@ export function TaskFlow({
           id: t.id,
           type: "task",
           position: laid ?? { x: t.positionX, y: t.positionY },
-          data: { ...t, hideHandles: readOnly },
+          data: { ...t, hideHandles: immutable },
           deletable: false,
-          draggable: !readOnly,
-          connectable: !readOnly,
+          draggable: !immutable,
+          connectable: !immutable,
         };
       }),
-    [tasks, layoutById, readOnly],
+    [tasks, layoutById, immutable],
   );
 
   const initialEdges: Edge[] = useMemo(
@@ -309,12 +312,12 @@ export function TaskFlow({
           label: dependencyLabel(e.type, e.lagDays),
           markerEnd: { type: MarkerType.ArrowClosed, color: DEFAULT_EDGE },
           style: { stroke: DEFAULT_EDGE, strokeWidth: 2 },
-          interactionWidth: readOnly ? 0 : 24,
-          selectable: !readOnly,
-          focusable: !readOnly,
+          interactionWidth: immutable ? 0 : 24,
+          selectable: !immutable,
+          focusable: !immutable,
         };
       }),
-    [edges, readOnly],
+    [edges, immutable],
   );
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -372,7 +375,7 @@ export function TaskFlow({
 
   const onConnect = useCallback(
     async (connection: Connection) => {
-      if (readOnly) return;
+      if (immutable) return;
       if (!connection.source || !connection.target) return;
       const type = dependencyTypeFromHandles(
         connection.sourceHandle,
@@ -396,7 +399,7 @@ export function TaskFlow({
         setEdges(initialEdges);
       }
     },
-    [readOnly, projectId, setEdges, initialEdges],
+    [immutable, projectId, setEdges, initialEdges],
   );
 
   const persistEdgeDeletes = useCallback(
@@ -439,13 +442,13 @@ export function TaskFlow({
 
   const onNodeDragStop = useCallback(
     async (_: unknown, node: Node) => {
-      if (readOnly) return;
+      if (immutable) return;
       await updateTask(node.id, {
         positionX: node.position.x,
         positionY: node.position.y,
       });
     },
-    [readOnly],
+    [immutable],
   );
 
   const onNodeClick = useCallback(
@@ -460,8 +463,9 @@ export function TaskFlow({
       {confirmDialog}
       {readOnly && (
         <p className="text-xs text-muted">
-          Árbol de izquierda a derecha. Desliza para explorar; toca una tarea
-          para el detalle y los enlaces.
+          {locked
+            ? "Árbol de izquierda a derecha. Desliza para explorar y toca una tarea para ver el detalle."
+            : "Árbol de izquierda a derecha. Desliza para explorar; toca una tarea para el detalle y los enlaces."}
         </p>
       )}
       <div
@@ -480,37 +484,37 @@ export function TaskFlow({
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
-            nodesDraggable={!readOnly}
-            nodesConnectable={!readOnly}
-            edgesFocusable={!readOnly}
+            nodesDraggable={!immutable}
+            nodesConnectable={!immutable}
+            edgesFocusable={!immutable}
             isValidConnection={(c) =>
               dependencyTypeFromHandles(c.sourceHandle, c.targetHandle) != null
             }
             onEdgesDelete={
-              readOnly
+              immutable
                 ? undefined
                 : (deleted) => {
                     void askDeleteEdges(deleted);
                   }
             }
             onEdgeDoubleClick={
-              readOnly
+              immutable
                 ? undefined
                 : (_, edge) => {
                     setEdges((eds) => eds.filter((e) => e.id !== edge.id));
                     void askDeleteEdges([edge]);
                   }
             }
-            onNodeDragStop={readOnly ? undefined : onNodeDragStop}
+            onNodeDragStop={immutable ? undefined : onNodeDragStop}
             onNodeClick={onNodeClick}
             onEdgeClick={
-              readOnly ? undefined : () => onSelectConnector(true)
+              immutable ? undefined : () => onSelectConnector(true)
             }
             onPaneClick={() => {
               onSelectTask(null);
               onSelectConnector(false);
             }}
-            deleteKeyCode={readOnly ? null : ["Backspace", "Delete"]}
+            deleteKeyCode={immutable ? null : ["Backspace", "Delete"]}
             edgesReconnectable={false}
             defaultEdgeOptions={{
               type: "dependency",
@@ -534,7 +538,7 @@ export function TaskFlow({
             proOptions={{ hideAttribution: true }}
           >
             <Background gap={16} color="#e2e8f0" />
-            <Controls showInteractive={!readOnly} />
+            <Controls showInteractive={!immutable} />
             {showMiniMap && (
               <MiniMap
                 position="top-left"

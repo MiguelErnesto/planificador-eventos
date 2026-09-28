@@ -63,6 +63,7 @@ export default async function ProjectsPage() {
                 durationDays={p.durationDays}
                 progressPct={p.progressPct}
                 taskCount={p.taskCount}
+                locked={p.locked}
                 onDelete={deleteProjectAction}
               />
             ))}

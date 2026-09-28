@@ -265,6 +265,7 @@ function TaskDetailBody({
   selected,
   tasks,
   edges,
+  locked,
   startTransition,
   onDeleted,
 }: {
@@ -272,6 +273,7 @@ function TaskDetailBody({
   selected: Task;
   tasks: Task[];
   edges: Edge[];
+  locked: boolean;
   startTransition: (fn: () => void | Promise<void>) => void;
   onDeleted: () => void;
 }) {
@@ -294,60 +296,79 @@ function TaskDetailBody({
         <span className="text-xs font-medium uppercase tracking-wide text-muted">
           Detalle
         </span>
-        <button
-          type="button"
-          className={`${btn.danger} ${btn.sm}`}
-          onClick={() => {
-            void (async () => {
-              const ok = await confirm({
-                title: "Eliminar tarea",
-                message: `¿Seguro que quieres eliminar «${selected.title}»? Esta acción no se puede deshacer.`,
-                confirmLabel: "Eliminar",
-              });
-              if (!ok) return;
-              startTransition(async () => {
-                await deleteTask(selected.id);
-                onDeleted();
-              });
-            })();
-          }}
-        >
-          Eliminar tarea
-        </button>
+        {!locked && (
+          <button
+            type="button"
+            className={`${btn.danger} ${btn.sm}`}
+            onClick={() => {
+              void (async () => {
+                const ok = await confirm({
+                  title: "Eliminar tarea",
+                  message: `¿Seguro que quieres eliminar «${selected.title}»? Esta acción no se puede deshacer.`,
+                  confirmLabel: "Eliminar",
+                });
+                if (!ok) return;
+                startTransition(async () => {
+                  await deleteTask(selected.id);
+                  onDeleted();
+                });
+              })();
+            }}
+          >
+            Eliminar tarea
+          </button>
+        )}
       </div>
-      <TaskTitleInput
-        taskId={selected.id}
-        title={selected.title}
-        onCommit={(nextTitle) =>
-          startTransition(async () => {
-            await updateTask(selected.id, { title: nextTitle });
-          })
-        }
-      />
-      <p>
-        Duración:{" "}
-        <input
-          type="number"
-          min={1}
-          defaultValue={selected.durationDays}
-          key={selected.id + selected.durationDays}
-          className="w-20 rounded border border-border px-2 py-1"
-          onBlur={(e) => {
-            const v = Number(e.target.value);
-            if (v >= 1 && v !== selected.durationDays) {
-              startTransition(() => updateTask(selected.id, { durationDays: v }));
-            }
-          }}
-        />{" "}
-        días
-      </p>
-      <TaskProgressSlider
-        taskId={selected.id}
-        progressPct={selected.progressPct}
-        onCommit={(pct) =>
-          startTransition(() => updateTask(selected.id, { progressPct: pct }))
-        }
-      />
+      {locked ? (
+        <p className="font-medium text-slate-900">{selected.title}</p>
+      ) : (
+        <TaskTitleInput
+          taskId={selected.id}
+          title={selected.title}
+          onCommit={(nextTitle) =>
+            startTransition(async () => {
+              await updateTask(selected.id, { title: nextTitle });
+            })
+          }
+        />
+      )}
+      {locked ? (
+        <p>
+          Duración: {selected.durationDays}{" "}
+          {selected.durationDays === 1 ? "día" : "días"}
+        </p>
+      ) : (
+        <p>
+          Duración:{" "}
+          <input
+            type="number"
+            min={1}
+            defaultValue={selected.durationDays}
+            key={selected.id + selected.durationDays}
+            className="w-20 rounded border border-border px-2 py-1"
+            onBlur={(e) => {
+              const v = Number(e.target.value);
+              if (v >= 1 && v !== selected.durationDays) {
+                startTransition(() => updateTask(selected.id, { durationDays: v }));
+              }
+            }}
+          />{" "}
+          días
+        </p>
+      )}
+      {locked ? (
+        <p>
+          Progreso: <strong>{selected.progressPct}%</strong>
+        </p>
+      ) : (
+        <TaskProgressSlider
+          taskId={selected.id}
+          progressPct={selected.progressPct}
+          onCommit={(pct) =>
+            startTransition(() => updateTask(selected.id, { progressPct: pct }))
+          }
+        />
+      )}
       <TaskMarginCopy
         slackDays={selected.slackDays}
         isCritical={selected.isCritical}
@@ -396,30 +417,34 @@ function TaskDetailBody({
                       {dependencyTypeDisplay(e.type)}
                     </span>
                   </span>
-                  <button
-                    type="button"
-                    className={`shrink-0 ${btn.danger} ${btn.sm}`}
-                    onClick={() =>
-                      void askRemoveDependency(
-                        from?.title ?? e.fromTaskId,
-                        e.id,
-                      )
-                    }
-                  >
-                    Quitar
-                  </button>
+                  {!locked && (
+                    <button
+                      type="button"
+                      className={`shrink-0 ${btn.danger} ${btn.sm}`}
+                      onClick={() =>
+                        void askRemoveDependency(
+                          from?.title ?? e.fromTaskId,
+                          e.id,
+                        )
+                      }
+                    >
+                      Quitar
+                    </button>
+                  )}
                 </li>
               );
             })}
         </ul>
-        <AddDependencyControl
-          projectId={projectId}
-          selectedId={selected.id}
-          tasks={tasks}
-          edges={edges}
-          mode="predecessor"
-          startTransition={startTransition}
-        />
+        {!locked && (
+          <AddDependencyControl
+            projectId={projectId}
+            selectedId={selected.id}
+            tasks={tasks}
+            edges={edges}
+            mode="predecessor"
+            startTransition={startTransition}
+          />
+        )}
       </div>
       <div>
         <p className="mb-1 text-muted">Sucesores</p>
@@ -439,27 +464,31 @@ function TaskDetailBody({
                       {dependencyTypeDisplay(e.type)}
                     </span>
                   </span>
-                  <button
-                    type="button"
-                    className={`shrink-0 ${btn.danger} ${btn.sm}`}
-                    onClick={() =>
-                      void askRemoveDependency(to?.title ?? e.toTaskId, e.id)
-                    }
-                  >
-                    Quitar
-                  </button>
+                  {!locked && (
+                    <button
+                      type="button"
+                      className={`shrink-0 ${btn.danger} ${btn.sm}`}
+                      onClick={() =>
+                        void askRemoveDependency(to?.title ?? e.toTaskId, e.id)
+                      }
+                    >
+                      Quitar
+                    </button>
+                  )}
                 </li>
               );
             })}
         </ul>
-        <AddDependencyControl
-          projectId={projectId}
-          selectedId={selected.id}
-          tasks={tasks}
-          edges={edges}
-          mode="successor"
-          startTransition={startTransition}
-        />
+        {!locked && (
+          <AddDependencyControl
+            projectId={projectId}
+            selectedId={selected.id}
+            tasks={tasks}
+            edges={edges}
+            mode="successor"
+            startTransition={startTransition}
+          />
+        )}
       </div>
     </div>
   );
@@ -477,6 +506,7 @@ export function ProjectEditor({
   exceedsEventDate,
   overrunDays,
   planSlackDays,
+  locked = false,
 }: {
   projectId: string;
   projectName: string;
@@ -489,6 +519,7 @@ export function ProjectEditor({
   exceedsEventDate: boolean;
   overrunDays: number;
   planSlackDays: number;
+  locked?: boolean;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [connectorSelected, setConnectorSelected] = useState(false);
@@ -592,7 +623,30 @@ export function ProjectEditor({
   return (
     <div className="space-y-4 sm:space-y-6">
       <div>
-        {compactHeader ? (
+        {locked ? (
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex min-w-0 items-center gap-2">
+                <h1
+                  className="min-w-0 truncate text-xl text-slate-900 sm:text-2xl lg:text-3xl"
+                  style={{ fontFamily: "var(--font-brand), serif" }}
+                >
+                  {projectName}
+                </h1>
+                <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted">
+                  Solo lectura
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-muted">
+                Fecha límite:{" "}
+                {formatCalendarDate(eventDate, "d MMMM yyyy", {
+                  locale: es,
+                })}
+              </p>
+            </div>
+            <ExportPdfLink projectId={projectId} />
+          </div>
+        ) : compactHeader ? (
           editingMeta ? (
             <ProjectMetaForm
               projectId={projectId}
@@ -696,23 +750,38 @@ export function ProjectEditor({
       </div>
 
       {/* Mobile: Nueva tarea right under header */}
-      <div className="lg:hidden">{newTaskPanel}</div>
+      {!locked && <div className="lg:hidden">{newTaskPanel}</div>}
 
       <div className="grid gap-4 sm:gap-6 lg:grid-cols-[1fr_280px]">
         {/* Gantt first on mobile */}
         <div className="order-1 min-w-0 lg:order-3 lg:col-span-2">
           <p className="mb-2 rounded-lg border border-border/80 bg-slate-50 px-3 py-2 text-xs text-muted lg:hidden">
-            <strong className="text-slate-700">Detalle:</strong> toca el{" "}
-            <strong className="text-slate-700">nombre</strong> de la tarea, o da{" "}
-            <strong className="text-slate-700">doble toque</strong> a una barra
-            del calendario. Un solo toque en la barra sirve para moverla. En el{" "}
-            <strong className="text-slate-700">grafo</strong>, un toque abre el
-            detalle. Los enlaces se editan ahí (predecesor / sucesor).
+            {locked ? (
+              <>
+                <strong className="text-slate-700">Solo lectura.</strong> Toca
+                el <strong className="text-slate-700">nombre</strong> de la
+                tarea, o da{" "}
+                <strong className="text-slate-700">doble toque</strong> a una
+                barra del calendario para ver el detalle. En el{" "}
+                <strong className="text-slate-700">grafo</strong>, un toque
+                abre el detalle.
+              </>
+            ) : (
+              <>
+                <strong className="text-slate-700">Detalle:</strong> toca el{" "}
+                <strong className="text-slate-700">nombre</strong> de la tarea, o da{" "}
+                <strong className="text-slate-700">doble toque</strong> a una barra
+                del calendario. Un solo toque en la barra sirve para moverla. En el{" "}
+                <strong className="text-slate-700">grafo</strong>, un toque abre el
+                detalle. Los enlaces se editan ahí (predecesor / sucesor).
+              </>
+            )}
           </p>
           <TaskGantt
             tasks={tasks}
             eventDate={eventDate}
             today={today}
+            readOnly={locked}
             onSelectTask={(id) => selectTask(id)}
           />
         </div>
@@ -740,6 +809,7 @@ export function ProjectEditor({
                 edges={edges}
                 selectedTaskId={selectedId}
                 onSelectTask={(id) => selectTask(id)}
+                locked={locked}
                 onSelectConnector={(selectedConn) => {
                   setConnectorSelected(selectedConn);
                   if (selectedConn) {
@@ -753,7 +823,7 @@ export function ProjectEditor({
         </div>
 
         <aside className="order-3 space-y-4 lg:order-2">
-          <div className="hidden lg:block">{newTaskPanel}</div>
+          {!locked && <div className="hidden lg:block">{newTaskPanel}</div>}
 
           {/* Desktop detail panel */}
           <div className="hidden rounded-2xl border border-border bg-panel p-4 shadow-sm lg:block">
@@ -768,6 +838,7 @@ export function ProjectEditor({
                 selected={selected}
                 tasks={tasks}
                 edges={edges}
+                locked={locked}
                 startTransition={startTransition}
                 onDeleted={() => selectTask(null)}
               />
@@ -788,6 +859,7 @@ export function ProjectEditor({
             selected={selected}
             tasks={tasks}
             edges={edges}
+            locked={locked}
             startTransition={startTransition}
             onDeleted={() => selectTask(null)}
           />

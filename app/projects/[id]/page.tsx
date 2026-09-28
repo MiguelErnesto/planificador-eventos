@@ -27,6 +27,7 @@ export default async function ProjectPage({ params }: Props) {
       exceedsEventDate={cpm.exceedsEventDate}
       overrunDays={cpm.overrunDays}
       planSlackDays={cpm.planSlackDays}
+      locked={project.locked}
       tasks={project.tasks.map((t) => ({
         id: t.id,
         title: t.title,
