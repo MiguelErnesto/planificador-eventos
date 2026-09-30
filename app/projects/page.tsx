@@ -41,15 +41,9 @@ export default async function ProjectsPage() {
         hasProjects={projects.length > 0}
       />
 
-      <section className="space-y-1">
-        <h2 className="text-lg font-semibold text-slate-800">
-          Listado
-        </h2>
-        {projects.length === 0 && !dbError ? (
-          <p className="text-sm text-muted">
-            Cuando crees un proyecto, aparecerá aquí.
-          </p>
-        ) : (
+      {projects.length > 0 && (
+        <section className="space-y-1">
+          <h2 className="text-lg font-semibold text-slate-800">Listado</h2>
           <ul className="overflow-hidden rounded-2xl border border-border bg-panel shadow-sm">
             {projects.map((p) => (
               <ProjectListItem
@@ -68,8 +62,8 @@ export default async function ProjectsPage() {
               />
             ))}
           </ul>
-        )}
-      </section>
+        </section>
+      )}
     </div>
   );
 }

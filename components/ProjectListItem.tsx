@@ -102,7 +102,7 @@ export function ProjectListItem({
           <div className="relative z-10 flex shrink-0 flex-wrap gap-2">
             <Link
               href={`/projects/${id}`}
-              className={`${btn.secondary} ${btn.sm}`}
+              className={`inline-flex min-h-11 items-center ${btn.secondary} ${btn.md}`}
             >
               Abrir
             </Link>
@@ -111,14 +111,14 @@ export function ProjectListItem({
                 <button
                   type="button"
                   onClick={() => setEditing(true)}
-                  className={`${btn.secondary} ${btn.sm}`}
+                  className={`min-h-11 ${btn.secondary} ${btn.md}`}
                 >
                   Editar
                 </button>
                 <button
                   type="button"
                   onClick={() => void handleDelete()}
-                  className={`${btn.danger} ${btn.sm}`}
+                  className={`min-h-11 ${btn.danger} ${btn.md}`}
                 >
                   Eliminar
                 </button>

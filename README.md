@@ -22,7 +22,7 @@ En la cabecera: **Nuevo** (formulario de alta) y **Ver listado**.
 
 Cada fila muestra nombre, fecha límite, progreso, número de tareas y el rango del plan (inicio → fin).
 
-- **Nuevo proyecto** / **Crear el primero**: nombre y fecha límite. Al crear, abre ese proyecto.
+- **Nuevo** abre el formulario (nombre y fecha límite). Al crear, abre ese proyecto.
 - Pulsa la fila o **Abrir** para entrar al plan.
 - **Editar**: cambia nombre o fecha sin abrir el gráfico.
 - **Eliminar**: pide confirmación; no se puede deshacer.
