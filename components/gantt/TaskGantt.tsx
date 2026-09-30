@@ -89,7 +89,9 @@ export function TaskGantt({
   const labelW = useGanttLabelWidth();
   const labelWRef = useRef(labelW);
   labelWRef.current = labelW;
+  const isMd = useMediaQuery("(min-width: 768px)");
   const isLg = useMediaQuery("(min-width: 1024px)");
+  const narrowControls = isMd === false;
   const requireDoubleTap = isLg === false;
   const barTapRef = useRef<{ id: string; t: number } | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -210,71 +212,87 @@ export function TaskGantt({
     await updateTask(task.id, { fixedStart: toUtcDateIso(next) });
   }
 
+  const chartControls = (
+    <span
+      className="react-flow__controls horizontal inline-flex overflow-hidden rounded-sm border border-border bg-white"
+      style={
+        {
+          background: "#ffffff",
+          boxShadow: "none",
+          flexDirection: "row",
+          ["--xy-controls-button-background-color"]: "#ffffff",
+          ["--xy-controls-button-border-color"]: "#e2e8f0",
+        } as CSSProperties
+      }
+      aria-label="Controles de la tabla"
+    >
+      <ControlButton
+        className="react-flow__controls-zoomin"
+        title="Acercar"
+        aria-label="Acercar"
+        disabled={zoom >= ZOOM_MAX}
+        onClick={() => setZoom((z) => clampZoom(z + ZOOM_STEP))}
+      >
+        <PlusIcon />
+      </ControlButton>
+      <ControlButton
+        className="react-flow__controls-zoomout"
+        title="Alejar"
+        aria-label="Alejar"
+        disabled={zoom <= ZOOM_MIN}
+        onClick={() => setZoom((z) => clampZoom(z - ZOOM_STEP))}
+      >
+        <MinusIcon />
+      </ControlButton>
+      <ControlButton
+        className="react-flow__controls-fitview"
+        title="Ajustar vista"
+        aria-label="Ajustar vista"
+        onClick={fitView}
+      >
+        <FitViewIcon />
+      </ControlButton>
+      {!readOnly && (
+        <ControlButton
+          className="react-flow__controls-interactive"
+          title={locked ? "Desbloquear" : "Bloquear"}
+          aria-label={locked ? "Desbloquear" : "Bloquear"}
+          onClick={() => setLocked((v) => !v)}
+        >
+          {locked ? <LockIcon /> : <UnlockIcon />}
+        </ControlButton>
+      )}
+    </span>
+  );
+
   return (
     <div
-      ref={wrapRef}
-      className={`w-full overflow-auto rounded-2xl border border-border bg-panel ${
+      className={`w-full overflow-hidden rounded-2xl border border-border bg-panel ${
         drag ? "select-none" : ""
       }`}
     >
+      {narrowControls && (
+        <div className="flex items-center justify-end border-b border-border bg-slate-50 px-2 py-1.5">
+          {chartControls}
+        </div>
+      )}
+      <div ref={wrapRef} className="w-full overflow-auto">
       <div className="min-w-full" style={{ width: labelW + totalDays * dayPx }}>
         <div className="sticky top-0 z-20 flex items-stretch border-b border-border bg-slate-50 text-xs text-muted">
           <div
             className="sticky left-0 z-30 flex items-center justify-between gap-1 bg-slate-50 px-2 sm:gap-2 sm:px-3"
             style={{ width: labelW }}
           >
-            <span className="hidden min-w-0 truncate text-sm font-bold text-slate-900 sm:inline sm:text-base">
+            <span
+              className={`min-w-0 truncate text-sm font-bold text-slate-900 sm:text-base ${
+                narrowControls ? "inline" : "hidden sm:inline"
+              }`}
+            >
               Tareas
             </span>
-            <span className="inline-flex shrink-0">
-              <span
-                className="react-flow__controls horizontal overflow-hidden rounded-sm border border-border bg-white"
-                style={{
-                    background: "#ffffff",
-                    boxShadow: "none",
-                    ["--xy-controls-button-background-color"]: "#ffffff",
-                    ["--xy-controls-button-border-color"]: "#e2e8f0",
-                  } as CSSProperties}
-                aria-label="Controles de la tabla"
-              >
-                <ControlButton
-                  className="react-flow__controls-zoomin"
-                  title="Acercar"
-                  aria-label="Acercar"
-                  disabled={zoom >= ZOOM_MAX}
-                  onClick={() => setZoom((z) => clampZoom(z + ZOOM_STEP))}
-                >
-                  <PlusIcon />
-                </ControlButton>
-                <ControlButton
-                  className="react-flow__controls-zoomout"
-                  title="Alejar"
-                  aria-label="Alejar"
-                  disabled={zoom <= ZOOM_MIN}
-                  onClick={() => setZoom((z) => clampZoom(z - ZOOM_STEP))}
-                >
-                  <MinusIcon />
-                </ControlButton>
-                <ControlButton
-                  className="react-flow__controls-fitview"
-                  title="Ajustar vista"
-                  aria-label="Ajustar vista"
-                  onClick={fitView}
-                >
-                  <FitViewIcon />
-                </ControlButton>
-                {!readOnly && (
-                  <ControlButton
-                    className="react-flow__controls-interactive"
-                    title={locked ? "Desbloquear" : "Bloquear"}
-                    aria-label={locked ? "Desbloquear" : "Bloquear"}
-                    onClick={() => setLocked((v) => !v)}
-                  >
-                    {locked ? <LockIcon /> : <UnlockIcon />}
-                  </ControlButton>
-                )}
-              </span>
-            </span>
+            {!narrowControls && (
+              <span className="inline-flex shrink-0">{chartControls}</span>
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex border-b border-border/70">
@@ -464,5 +482,6 @@ export function TaskGantt({
           })}
         </div>
       </div>
+    </div>
   );
 }

@@ -44,21 +44,23 @@ export function BottomSheet({
         aria-label={title}
         className="absolute inset-x-0 bottom-0 flex max-h-[85dvh] flex-col rounded-t-2xl border border-border bg-panel shadow-xl"
       >
-        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-3">
-          <div className="min-w-0">
-            <div
-              aria-hidden
-              className="mx-auto mb-2 h-1 w-10 rounded-full bg-slate-300 lg:hidden"
-            />
-            <h2 className="truncate font-semibold text-slate-900">{title}</h2>
+        <div className="shrink-0 border-b border-border px-4 pb-3 pt-2">
+          <div
+            aria-hidden
+            className="mx-auto mb-2 h-1 w-10 rounded-full bg-slate-300"
+          />
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="min-w-0 truncate font-semibold text-slate-900">
+              {title}
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              className={`shrink-0 ${btn.secondary} ${btn.md}`}
+            >
+              Cerrar
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className={`shrink-0 ${btn.secondary} ${btn.md}`}
-          >
-            Cerrar
-          </button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">{children}</div>
       </div>

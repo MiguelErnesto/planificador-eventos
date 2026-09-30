@@ -624,7 +624,7 @@ export function ProjectEditor({
     <div className="space-y-4 sm:space-y-6">
       <div>
         {locked ? (
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-2">
                 <h1
@@ -644,7 +644,10 @@ export function ProjectEditor({
                 })}
               </p>
             </div>
-            <ExportPdfLink projectId={projectId} />
+            <ExportPdfLink
+              projectId={projectId}
+              className="w-full sm:w-auto"
+            />
           </div>
         ) : compactHeader ? (
           editingMeta ? (
@@ -658,7 +661,7 @@ export function ProjectEditor({
               onSaved={() => setEditingMeta(false)}
             />
           ) : (
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <h1
                   className="truncate text-xl text-slate-900 sm:text-2xl"
@@ -673,12 +676,15 @@ export function ProjectEditor({
                   })}
                 </p>
               </div>
-              <div className="flex shrink-0 flex-col items-stretch gap-2 sm:flex-row">
-                <ExportPdfLink projectId={projectId} />
+              <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row">
+                <ExportPdfLink
+                  projectId={projectId}
+                  className="w-full sm:w-auto"
+                />
                 <button
                   type="button"
                   onClick={() => setEditingMeta(true)}
-                  className={`min-h-11 ${btn.secondary} ${btn.md}`}
+                  className={`min-h-11 w-full sm:w-auto ${btn.secondary} ${btn.md}`}
                 >
                   Editar
                 </button>

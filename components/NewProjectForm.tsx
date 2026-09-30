@@ -27,17 +27,6 @@ export function NewProjectForm({
     };
   }, []);
 
-  function openForm() {
-    if (window.location.hash !== "#nuevo") {
-      window.location.hash = "nuevo";
-    } else {
-      setOpen(true);
-      requestAnimationFrame(() => {
-        document.getElementById("nuevo")?.focus();
-      });
-    }
-  }
-
   function closeForm() {
     setOpen(false);
     if (window.location.hash === "#nuevo") {
@@ -46,21 +35,11 @@ export function NewProjectForm({
   }
 
   if (!open) {
+    if (hasProjects) return null;
     return (
-      <div className="flex flex-col items-stretch gap-2 sm:items-center">
-        {!hasProjects && (
-          <p className="text-sm text-muted sm:text-center">
-            No hay proyectos todavía.
-          </p>
-        )}
-        <button
-          type="button"
-          onClick={openForm}
-          className={`${btn.primary} w-full px-4 py-2.5 text-sm`}
-        >
-          {hasProjects ? "Nuevo proyecto" : "Crear el primero"}
-        </button>
-      </div>
+      <p className="text-sm text-muted sm:text-center">
+        No hay proyectos todavía.
+      </p>
     );
   }
 
